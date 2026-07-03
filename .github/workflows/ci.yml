@@ -12,7 +12,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # Match the interpreter requirements-lock.txt was generated on (the
+          # project's reference interpreter). The package supports 3.11+ (see the
+          # capped ranges in pyproject.toml and mypy's 3.11 analysis target), but
+          # the exact pins in the lock are resolved for this version.
+          python-version: "3.14"
       - name: Install pinned dependencies (reproducible)
         # Install the exact locked versions, then the package itself without
         # re-resolving — so CI builds the same environment every run.

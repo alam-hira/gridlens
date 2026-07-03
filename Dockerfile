@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+# 3.14 matches the interpreter requirements-lock.txt was pinned for (the package
+# itself supports 3.11+; the lock's exact versions are resolved for this one).
+FROM python:3.14-slim
 
 WORKDIR /app
 

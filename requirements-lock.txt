@@ -1,5 +1,8 @@
 # Reproducibility lock for GridLens — the pip equivalent of a uv.lock.
-# Exact package versions used to build and test the project (Python 3.11+).
+# Target interpreter: CPython 3.14 (the reference interpreter these versions were
+# resolved on; CI and the Dockerfile use 3.14 to consume this lock). The package
+# itself supports Python 3.11+ — an unpinned `pip install -e ".[dev]"` resolves
+# per-your-Python via the capped ranges in pyproject.toml.
 #
 # Recreate the exact environment:
 #     python -m venv .venv
