@@ -1,0 +1,11 @@
+{
+  "name": "gridlens-marketplace",
+  "owner": "hira-alam",
+  "plugins": [
+    {
+      "name": "gridlens",
+      "source": ".",
+      "description": "GB electricity analytics agent."
+    }
+  ]
+}

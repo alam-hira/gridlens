@@ -1,0 +1,72 @@
+{ 
+  "data":[{ 
+    "from": "2026-06-26T00:00Z",
+    "to": "2026-06-27T00:00Z",
+    "intensity": {
+      "max": 220,
+      "average": 171,
+      "min": 111,
+      "index": "high"
+    }
+  },
+  { 
+    "from": "2026-06-27T00:00Z",
+    "to": "2026-06-28T00:00Z",
+    "intensity": {
+      "max": 227,
+      "average": 138,
+      "min": 50,
+      "index": "moderate"
+    }
+  },
+  { 
+    "from": "2026-06-28T00:00Z",
+    "to": "2026-06-29T00:00Z",
+    "intensity": {
+      "max": 177,
+      "average": 105,
+      "min": 41,
+      "index": "moderate"
+    }
+  },
+  { 
+    "from": "2026-06-29T00:00Z",
+    "to": "2026-06-30T00:00Z",
+    "intensity": {
+      "max": 239,
+      "average": 165,
+      "min": 108,
+      "index": "moderate"
+    }
+  },
+  { 
+    "from": "2026-06-30T00:00Z",
+    "to": "2026-07-01T00:00Z",
+    "intensity": {
+      "max": 256,
+      "average": 209,
+      "min": 156,
+      "index": "high"
+    }
+  },
+  { 
+    "from": "2026-07-01T00:00Z",
+    "to": "2026-07-02T00:00Z",
+    "intensity": {
+      "max": 240,
+      "average": 173,
+      "min": 79,
+      "index": "high"
+    }
+  },
+  { 
+    "from": "2026-07-02T00:00Z",
+    "to": "2026-07-03T00:00Z",
+    "intensity": {
+      "max": 130,
+      "average": 74,
+      "min": 38,
+      "index": "low"
+    }
+  }]
+}

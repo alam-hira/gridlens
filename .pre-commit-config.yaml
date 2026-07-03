@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        # Mirror CI exactly (`mypy src`) rather than per-file: pass no filenames
+        # and point at the package, so the hook uses the same config and sees the
+        # whole engine. fastapi/typer/jinja2 ship their own types, so they must be
+        # present in the hook's isolated env for mypy to resolve them.
+        pass_filenames: false
+        args: ["src"]
+        additional_dependencies:
+          - pydantic>=2.6
+          - pydantic-settings>=2.2
+          - fastapi
+          - typer
+          - jinja2
+          - types-requests
+          - types-PyYAML

@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "from": "2026-06-01T00:00Z",
+      "to": "2026-06-01T00:30Z",
+      "generationmix": [
+        {"fuel": "gas", "perc": 32.0},
+        {"fuel": "wind", "perc": 26.0},
+        {"fuel": "nuclear", "perc": 15.0},
+        {"fuel": "imports", "perc": 11.0},
+        {"fuel": "solar", "perc": 8.0},
+        {"fuel": "biomass", "perc": 5.0},
+        {"fuel": "hydro", "perc": 2.0},
+        {"fuel": "other", "perc": 1.0},
+        {"fuel": "coal", "perc": 0.0}
+      ]
+    }
+  ]
+}

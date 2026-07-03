@@ -1,0 +1,9 @@
+name: Great Britain
+scope: national
+region_id: null
+endpoints:
+  intensity: /intensity
+  generation: /generation
+  stats: /intensity/stats
+labels:
+  title: Great Britain electricity

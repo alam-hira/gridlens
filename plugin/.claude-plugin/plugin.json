@@ -1,0 +1,11 @@
+{
+  "name": "gridlens",
+  "version": "0.1.0",
+  "description": "Trustworthy GB electricity analytics: carbon intensity, generation mix, validation, and a dashboard.",
+  "skills": [
+    "skills/grid-calc",
+    "skills/grid-monitor",
+    "skills/grid-trends",
+    "skills/grid-dashboard"
+  ]
+}

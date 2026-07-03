@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} — GridLens</title>
+  <style>
+    /* Colour roles come from the dataviz skill's reference palette. data-theme
+       (set by the toggle) wins over the OS preference in both directions. */
+    :root {
+      --plane: #f9f9f7; --surface: #fcfcfb; --surface-2: #ffffff;
+      --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+      --grid: #e1e0d9; --border: rgba(11,11,11,0.10);
+      --accent: #2a78d6; --good: #006300; --bad: #c0392b;
+      --shadow: 0 1px 2px rgba(11,11,11,0.06), 0 4px 16px rgba(11,11,11,0.05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --plane: #0d0d0d; --surface: #1a1a19; --surface-2: #222220;
+        --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+        --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+        --accent: #3987e5; --good: #0ca30c; --bad: #e66767;
+        --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.4);
+      }
+    }
+    :root[data-theme="dark"] {
+      --plane: #0d0d0d; --surface: #1a1a19; --surface-2: #222220;
+      --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+      --accent: #3987e5; --good: #0ca30c; --bad: #e66767;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--plane); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+    a { color: var(--accent); }
+    h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.15rem; margin: 0 0 14px; letter-spacing: -0.01em; }
+    .sub { color: var(--ink-2); font-size: 0.9rem; margin: 0; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600; color: #fff; vertical-align: middle;
+    }
+    header { display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+    .toggle {
+      background: var(--surface); color: var(--ink-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .toggle:hover { color: var(--ink); }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px;
+    }
+    .kpis { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      margin-bottom: 20px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 2px; }
+    .kpi .label { font-size: 0.8rem; color: var(--ink-2); font-weight: 600; }
+    .kpi .value { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
+    .kpi .value small { font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+    .kpi .note { font-size: 0.78rem; color: var(--muted); }
+    .kpi .spark { height: 34px; margin-top: 6px; }
+    .delta { font-size: 0.8rem; font-weight: 600; }
+    .delta-good { color: var(--good); } .delta-bad { color: var(--bad); }
+    .delta-flat { color: var(--muted); }
+
+    .two-col { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+    .chart-box { position: relative; width: 100%; }
+    .chart-box.trend { height: 320px; }
+    .chart-box.donut { height: 260px; }
+
+    .legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid;
+      grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+    .legend li { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; }
+    .legend .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+    .legend .pct { margin-left: auto; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+    .bandbar { display: flex; height: 26px; border-radius: 7px; overflow: hidden;
+      border: 1px solid var(--border); }
+    .bandbar span { height: 100%; }
+    .bandlegend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px;
+      font-size: 0.82rem; color: var(--ink-2); }
+    .bandlegend b { color: var(--ink); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid);
+      font-variant-numeric: tabular-nums; }
+    th { color: var(--ink-2); font-weight: 600; }
+    td.num, th.num { text-align: right; }
+
+    .anom { border-left: 4px solid var(--muted); padding: 10px 14px; margin-bottom: 10px;
+      background: var(--surface-2); border-radius: 0 8px 8px 0; }
+    .anom.watch { border-left-color: var(--bad); }
+    .anom.info { border-left-color: var(--accent); }
+    .anom .rule { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--muted); font-weight: 700; }
+    .ok { color: var(--good); font-weight: 600; }
+
+    footer { margin-top: 8px; font-size: 0.85rem; color: var(--ink-2); }
+    footer h2 { color: var(--ink); }
+    footer ul { padding-left: 18px; } footer li { margin-bottom: 6px; }
+    .vgrid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 760px) { .vgrid { grid-template-columns: 1fr; } }
+    .stat-inline { font-size: 1.4rem; font-weight: 700; }
+    code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+    details { margin-top: 10px; } summary { cursor: pointer; color: var(--ink-2); }
+    .attribution { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--grid);
+      font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>{{ title }}</h1>
+      <p class="sub">
+        Window {{ window_from }} → {{ window_to }} ·
+        generated {{ generated_at }} ·
+        {{ n_periods }} half-hours
+        {% if n_forecast_used %}({{ n_forecast_used }} forecast-only){% endif %}
+      </p>
+    </div>
+    <button class="toggle" id="themeToggle" type="button" aria-label="Toggle colour theme">◐ Theme</button>
+  </header>
+
+  <!-- KPI tiles -------------------------------------------------------------->
+  <section class="kpis" aria-label="Headline metrics">
+    <div class="kpi">
+      <span class="label">Average intensity</span>
+      <span class="value">{{ mean_intensity if mean_intensity is not none else "—" }}<small> gCO₂/kWh</small></span>
+      {% if modal_band %}<span class="badge" style="background:{{ modal_band_color }}">mostly {{ modal_band }}</span>{% endif %}
+      {% set d = deltas.intensity_mean %}
+      {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
+        {{ d.arrow }} {{ d.absolute|abs }} gCO₂/kWh vs prev day</span>{% endif %}
+      <canvas class="spark" id="sparkIntensity" role="img"
+        aria-label="Daily mean intensity trend across the window">Daily mean intensity sparkline.</canvas>
+    </div>
+
+    <div class="kpi">
+      <span class="label">Renewable share</span>
+      <span class="value">{{ renewable_share if renewable_share is not none else "—" }}<small> %</small></span>
+      <span class="note">wind + solar + hydro</span>
+      {% set d = deltas.renewable_share %}
+      {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
+        {{ d.arrow }} {{ d.absolute|abs }} pp vs prev day</span>{% endif %}
+      <canvas class="spark" id="sparkRenewable" role="img"
+        aria-label="Daily renewable share trend across the window">Daily renewable share sparkline.</canvas>
+    </div>
+
+    <div class="kpi">
+      <span class="label">Low-carbon vs fossil</span>
+      <span class="value">{{ low_carbon_share if low_carbon_share is not none else "—" }}<small> % / {{ fossil_share }} %</small></span>
+      <span class="note">low-carbon incl. nuclear &amp; biomass</span>
+      {% set d = deltas.low_carbon_share %}
+      {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
+        {{ d.arrow }} {{ d.absolute|abs }} pp low-carbon vs prev day</span>{% endif %}
+      <canvas class="spark" id="sparkLowCarbon" role="img"
+        aria-label="Daily low-carbon share trend across the window">Daily low-carbon share sparkline.</canvas>
+    </div>
+
+    <div class="kpi">
+      <span class="label">Cleanest / dirtiest half-hour</span>
+      <span class="value">{{ cleanest_value if cleanest_value is not none else "—" }}<small> / {{ dirtiest_value }} gCO₂/kWh</small></span>
+      <span class="note">cleanest {{ cleanest_at }} · dirtiest {{ dirtiest_at }}</span>
+      <canvas class="spark" id="sparkMin" role="img"
+        aria-label="Daily minimum intensity trend across the window">Daily minimum intensity sparkline.</canvas>
+    </div>
+  </section>
+
+  <div class="two-col">
+    <!-- Generation mix ----------------------------------------------------->
+    <section class="card">
+      <h2>Generation mix <small style="color:var(--muted);font-weight:400">(window average)</small></h2>
+      <div class="chart-box donut">
+        <canvas id="mixChart" role="img"
+          aria-label="Doughnut of the window-average generation mix.{% for r in mix_rows[:5] %} {{ r.label }} {{ r.share }} percent.{% endfor %}">
+          Generation mix — {% for r in mix_rows %}{{ r.label }} {{ r.share }}%{% if not loop.last %}, {% endif %}{% endfor %}.
+        </canvas>
+      </div>
+      <ul class="legend">
+        {% for r in mix_rows %}
+        <li><span class="sw" style="background:{{ r.color_light }}"></span>{{ r.label }}<span class="pct">{{ r.share }}%</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <!-- Intensity trend ---------------------------------------------------->
+    <section class="card">
+      <h2>Carbon intensity trend</h2>
+      <div class="chart-box trend">
+        <canvas id="trendChart" role="img"
+          aria-label="Line chart of half-hourly carbon intensity across the window. Mean {{ mean_intensity }} gCO₂/kWh, ranging {{ cleanest_value }} to {{ dirtiest_value }}.">
+          Half-hourly carbon intensity, mean {{ mean_intensity }} gCO₂/kWh, from {{ cleanest_value }} to {{ dirtiest_value }}.
+        </canvas>
+      </div>
+      <p class="note" style="font-size:0.8rem;color:var(--muted);margin:8px 0 0">
+        Solid = actual · dashed = forecast.
+      </p>
+    </section>
+  </div>
+
+  <!-- Intensity bands ------------------------------------------------------>
+  {% if band_rows %}
+  <section class="card">
+    <h2>Time spent in each intensity band</h2>
+    <div class="bandbar" role="img" aria-label="Share of half-hours in each intensity band.{% for b in band_rows %} {{ b.band }} {{ b.share }} percent.{% endfor %}">
+      {% for b in band_rows %}<span style="width:{{ b.share }}%;background:{{ b.color }}" title="{{ b.band }}: {{ b.share }}%"></span>{% endfor %}
+    </div>
+    <div class="bandlegend">
+      {% for b in band_rows %}<span><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{{ b.color }}"></span> <b>{{ b.band }}</b> {{ b.share }}%</span>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Period comparison ---------------------------------------------------->
+  {% if deltas %}
+  <section class="card">
+    <h2>Latest day vs the day before</h2>
+    <table>
+      <thead><tr><th>Metric</th><th class="num">Previous</th><th class="num">Latest</th><th class="num">Change</th></tr></thead>
+      <tbody>
+      {% for metric, d in deltas.items() %}
+        <tr>
+          <td>{{ metric.replace("_", " ") }}</td>
+          <td class="num">{{ d.previous }}</td>
+          <td class="num">{{ d.current }}</td>
+          <td class="num {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
+            {{ d.arrow }} {{ d.absolute|abs }}{% if d.percent is not none %} ({{ d.percent|abs }}%){% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <!-- Anomalies ------------------------------------------------------------>
+  <section class="card">
+    <h2>Anomaly flags <small style="color:var(--muted);font-weight:400">(observations to verify)</small></h2>
+    {% if anomalies %}
+      {% for a in anomalies %}
+      <div class="anom {{ a.severity }}">
+        <div class="rule">{{ a.rule }}</div>
+        {{ a.message }}
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="ok">✓ Nothing unusual — no anomaly rules fired for this window.</p>
+    {% endif %}
+    <p class="note" style="font-size:0.8rem;color:var(--muted)">
+      Records — cleanest {{ records.lowest }} gCO₂/kWh ({{ records.lowest_at }}) ·
+      dirtiest {{ records.highest }} gCO₂/kWh ({{ records.highest_at }}) ·
+      greenest mix {{ records.greenest }}% ({{ records.greenest_at }}).
+    </p>
+  </section>
+
+  <!-- Methodology & validation footer ------------------------------------->
+  <footer class="card">
+    <h2>Methodology &amp; validation</h2>
+    <div class="vgrid">
+      <div>
+        <p style="margin-top:0"><strong>Layer B — exact reconciliation</strong> (tight)</p>
+        <p class="stat-inline ok" style="color:{{ '#0ca30c' if validation.match_rate_pct == 100 else 'var(--ink)' }}">
+          {{ validation.match_rate_pct if validation.match_rate_pct is not none else "—" }}% match</p>
+        <p class="sub">{{ validation.windows_matched }}/{{ validation.windows_tested }} daily windows reconcile to
+          the API's own <code>/intensity/stats</code> within ±{{ validation.tolerance }} gCO₂/kWh
+          (largest mean gap {{ validation.max_abs_diff }}).</p>
+      </div>
+      <div>
+        <p style="margin-top:0"><strong>Layer A — independent reconstruction</strong> (indicative)</p>
+        <p class="stat-inline">{{ validation.layer_a_mean }} gCO₂/kWh<small style="font-size:0.8rem;color:var(--muted)"> mean gap</small></p>
+        <p class="sub">Reconstructed from mix × factors: mean gap {{ validation.layer_a_mean }}
+          (abs {{ validation.layer_a_mean_abs }}), spread ±{{ validation.layer_a_std }},
+          range {{ validation.layer_a_min }}…{{ validation.layer_a_max }};
+          {{ validation.layer_a_outliers }} outliers flagged.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:6px">{{ validation.layer_a_note }}</p>
+
+    <h2 style="font-size:1rem;margin-top:20px">Modelling choices</h2>
+    <ul>
+      {% for note in methodology %}<li>{{ note|safe }}</li>{% endfor %}
+    </ul>
+
+    <details>
+      <summary>Data tables (non-visual view)</summary>
+      <table style="margin-top:10px">
+        <thead><tr><th>Fuel</th><th class="num">Window share %</th></tr></thead>
+        <tbody>{% for r in mix_rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.share }}</td></tr>{% endfor %}</tbody>
+      </table>
+      <table style="margin-top:12px">
+        <thead><tr><th>Factor → mix mapping</th><th class="num">gCO₂/kWh</th></tr></thead>
+        <tbody>{% for fuel, v in validation.factor_mapping.items() %}<tr><td>{{ fuel }}</td><td class="num">{{ v }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </details>
+
+    <p class="attribution">{{ attribution }}<br>
+      Built with <a href="https://www.chartjs.org">Chart.js</a> (vendored locally, MIT).
+      Dashboard generated by the GridLens engine — every number is computed in deterministic Python.</p>
+  </footer>
+
+</div>
+
+<!-- Vendored Chart.js (inlined; no CDN, no network) ------------------------->
+<script>{{ chart_js|safe }}</script>
+<script>
+"use strict";
+const DATA = {
+  mixLabels: {{ mix_rows|map(attribute="label")|list|tojson }},
+  mixValues: {{ mix_rows|map(attribute="share")|list|tojson }},
+  mixLight: {{ mix_rows|map(attribute="color_light")|list|tojson }},
+  mixDark: {{ mix_rows|map(attribute="color_dark")|list|tojson }},
+  trendLabels: {{ trend_labels|tojson }},
+  trendValues: {{ trend_values|tojson }},
+  trendForecast: {{ trend_forecast|tojson }},
+  dailyLabels: {{ daily_labels|tojson }},
+  sparkIntensity: {{ spark_intensity|tojson }},
+  sparkMin: {{ spark_min|tojson }},
+  sparkRenewable: {{ spark_renewable|tojson }},
+  sparkLowCarbon: {{ spark_low_carbon|tojson }},
+};
+
+// Theme handling: data-theme overrides the OS preference in both directions.
+function currentMode() {
+  const t = document.documentElement.getAttribute("data-theme");
+  if (t) return t;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function ink()  { return getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(); }
+function grid() { return getComputedStyle(document.documentElement).getPropertyValue("--grid").trim(); }
+function accent() { return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(); }
+
+const charts = [];
+function reg(chart, applyTheme) { charts.push({ chart, applyTheme }); return chart; }
+
+// Doughnut — parts of a whole. Colour by fuel; identity also in the HTML legend.
+const mixCanvas = document.getElementById("mixChart");
+if (mixCanvas && DATA.mixValues.length) {
+  const mk = () => ({
+    labels: DATA.mixLabels,
+    datasets: [{
+      data: DATA.mixValues,
+      backgroundColor: currentMode() === "dark" ? DATA.mixDark : DATA.mixLight,
+      borderColor: getComputedStyle(document.documentElement).getPropertyValue("--surface").trim(),
+      borderWidth: 2,
+    }],
+  });
+  const mixChart = new Chart(mixCanvas, {
+    type: "doughnut",
+    data: mk(),
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: "62%",
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.parsed}%` } },
+      },
+    },
+  });
+  reg(mixChart, () => {
+    mixChart.data.datasets[0].backgroundColor = currentMode() === "dark" ? DATA.mixDark : DATA.mixLight;
+    mixChart.data.datasets[0].borderColor = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+  });
+}
+
+// Trend — change over time, single series; forecast segment dashed.
+const trendCanvas = document.getElementById("trendChart");
+if (trendCanvas && DATA.trendValues.length) {
+  const trendChart = new Chart(trendCanvas, {
+    type: "line",
+    data: {
+      labels: DATA.trendLabels,
+      datasets: [{
+        label: "Carbon intensity (gCO₂/kWh)",
+        data: DATA.trendValues,
+        borderColor: accent(), backgroundColor: "transparent",
+        borderWidth: 2, pointRadius: 0, tension: 0.3, spanGaps: true,
+        segment: { borderDash: (ctx) => DATA.trendForecast[ctx.p1DataIndex] ? [5, 5] : undefined },
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink(), maxTicksLimit: 8, autoSkip: true } },
+        y: { grid: { color: grid() }, ticks: { color: ink() }, title: { display: true, text: "gCO₂/kWh", color: ink() } },
+      },
+    },
+  });
+  reg(trendChart, () => {
+    trendChart.data.datasets[0].borderColor = accent();
+    trendChart.options.scales.x.ticks.color = ink();
+    trendChart.options.scales.y.ticks.color = ink();
+    trendChart.options.scales.y.grid.color = grid();
+    trendChart.options.scales.y.title.color = ink();
+  });
+}
+
+// Sparklines — tiny, axis-free daily trends on the KPI tiles.
+function sparkline(id, values) {
+  const el = document.getElementById(id);
+  if (!el || !values.length) return;
+  const chart = new Chart(el, {
+    type: "line",
+    data: { labels: DATA.dailyLabels, datasets: [{
+      data: values, borderColor: accent(),
+      backgroundColor: "transparent", borderWidth: 2, pointRadius: 0, tension: 0.35, spanGaps: true,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+    },
+  });
+  reg(chart, () => { chart.data.datasets[0].borderColor = accent(); });
+}
+sparkline("sparkIntensity", DATA.sparkIntensity);
+sparkline("sparkRenewable", DATA.sparkRenewable);
+sparkline("sparkLowCarbon", DATA.sparkLowCarbon);
+sparkline("sparkMin", DATA.sparkMin);
+
+function retheme() {
+  for (const { chart, applyTheme } of charts) { applyTheme(); chart.update("none"); }
+}
+document.getElementById("themeToggle").addEventListener("click", () => {
+  document.documentElement.setAttribute("data-theme", currentMode() === "dark" ? "light" : "dark");
+  retheme();
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (!document.documentElement.getAttribute("data-theme")) retheme();
+});
+</script>
+</body>
+</html>

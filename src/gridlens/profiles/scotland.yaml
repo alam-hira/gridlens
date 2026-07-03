@@ -1,0 +1,7 @@
+name: Scotland
+scope: regional
+region_id: 1
+endpoints:
+  intensity: /regional/regionid
+labels:
+  title: Scotland electricity

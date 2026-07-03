@@ -1,0 +1,10 @@
+GridLens
+========
+
+Carbon intensity and generation data are provided by the National Energy System
+Operator (NESO) via the Carbon Intensity API (https://carbonintensity.org.uk),
+used under the Creative Commons Attribution 4.0 International Licence (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+GridLens is an independent open-source project and is not affiliated with or
+endorsed by NESO.
