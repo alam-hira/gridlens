@@ -88,7 +88,15 @@
     .legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid;
       grid-template-columns: 1fr 1fr; gap: 4px 16px; }
     .legend li { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; }
-    .legend .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+    /* Legend swatch carries both theme colours inline (--sw-light/--sw-dark); the
+       swatch then matches the chart's fill in whichever theme is active. */
+    .legend .sw { width: 12px; height: 12px; border-radius: 3px; flex: none;
+      background: var(--sw-light); }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .legend .sw { background: var(--sw-dark); }
+    }
+    :root[data-theme="dark"] .legend .sw { background: var(--sw-dark); }
+    :root[data-theme="light"] .legend .sw { background: var(--sw-light); }
     .legend .pct { margin-left: auto; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
     .bandbar { display: flex; height: 26px; border-radius: 7px; overflow: hidden;
@@ -245,7 +253,7 @@
       </div>
       <ul class="legend">
         {% for r in mix_rows %}
-        <li><span class="sw" style="background:{{ r.color_light }}"></span>{{ r.label }}<span class="pct">{{ r.share }}%</span></li>
+        <li><span class="sw" style="--sw-light:{{ r.color_light }};--sw-dark:{{ r.color_dark }}"></span>{{ r.label }}<span class="pct">{{ r.share }}%</span></li>
         {% endfor %}
       </ul>
     </section>
@@ -291,7 +299,7 @@
     </div>
     <ul class="legend">
       {% for s in mot_series %}
-      <li><span class="sw" style="background:{{ s.color_light }}"></span>{{ s.label }}</li>
+      <li><span class="sw" style="--sw-light:{{ s.color_light }};--sw-dark:{{ s.color_dark }}"></span>{{ s.label }}</li>
       {% endfor %}
     </ul>
   </section>
@@ -635,7 +643,7 @@ if (motCanvas && DATA.motSeries.length) {
   const motDatasets = () => DATA.motSeries.map((s) => {
     const colour = currentMode() === "dark" ? s.color_dark : s.color_light;
     return { label: s.label, data: s.data, borderColor: colour,
-      backgroundColor: withAlpha(colour, 0.78), borderWidth: 1, pointRadius: 0, fill: true, tension: 0.2 };
+      backgroundColor: withAlpha(colour, 0.88), borderWidth: 1, pointRadius: 0, fill: true, tension: 0.2 };
   });
   const motChart = new Chart(motCanvas, {
     type: "line",
@@ -657,7 +665,7 @@ if (motCanvas && DATA.motSeries.length) {
     motChart.data.datasets.forEach((ds, i) => {
       const colour = currentMode() === "dark" ? DATA.motSeries[i].color_dark : DATA.motSeries[i].color_light;
       ds.borderColor = colour;
-      ds.backgroundColor = withAlpha(colour, 0.78);
+      ds.backgroundColor = withAlpha(colour, 0.88);
     });
     motChart.options.scales.x.ticks.color = ink();
     motChart.options.scales.y.ticks.color = ink();
