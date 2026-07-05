@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/alam-hira/gridlens/actions/workflows/ci.yml/badge.svg)](https://github.com/alam-hira/gridlens/actions/workflows/ci.yml)
 
-**Live dashboard:** activates here once the repo is made public and GitHub Pages is enabled — it will serve [`docs/index.html`](docs/index.html). Until then, open [`examples/gb.html`](examples/gb.html) locally.
+**Live dashboard:** **[alam-hira.github.io/gridlens](https://alam-hira.github.io/gridlens/)** (served from [`docs/index.html`](docs/index.html)). You can also open [`examples/gb.html`](examples/gb.html) locally.
 
 GridLens turns the official GB **Carbon Intensity API** into a trustworthy
 analytics agent: deterministic, typed Python computes every metric, the figures
