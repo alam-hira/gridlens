@@ -124,12 +124,19 @@ def _modal_band(distribution: dict[str, float]) -> str | None:
 
 
 def _delta_context(report: DashboardReport) -> dict[str, dict[str, Any]]:
-    """Shape day-over-day deltas for display, tagging each as good/bad."""
+    """Shape day-over-day deltas for display, tagging each better/worse for the grid.
+
+    Deltas are coloured by *meaning*, not direction: a change is "better" when it
+    makes the grid cleaner (intensity or fossil share falling; renewable or
+    low-carbon share rising) and "worse" otherwise. The ``word`` mirrors the colour
+    so a green ▲ still reads clearly as an improvement.
+    """
     out: dict[str, dict[str, Any]] = {}
     for delta in report.metrics.comparison:
         if delta.absolute is None:
             continue
         going_down = delta.absolute < 0
+        is_flat = delta.absolute == 0
         good = going_down if delta.metric in _DELTA_GOOD_WHEN_DOWN else not going_down
         out[delta.metric] = {
             "current": delta.current,
@@ -137,7 +144,8 @@ def _delta_context(report: DashboardReport) -> dict[str, dict[str, Any]]:
             "absolute": delta.absolute,
             "percent": delta.percent,
             "arrow": "▼" if going_down else "▲",
-            "good": good if delta.absolute != 0 else None,
+            "good": None if is_flat else good,
+            "word": "" if is_flat else ("better" if good else "worse"),
         }
     return out
 
@@ -294,6 +302,9 @@ def _methodology_notes() -> list[str]:
         "Charts render to <code>&lt;canvas&gt;</code>; each carries "
         '<code>role="img"</code>, an <code>aria-label</code> and a text fallback, and '
         "a data-table view is provided for non-visual reading.",
+        "Period-over-period deltas are coloured by whether the change is "
+        "<strong>better or worse for grid cleanliness</strong>, not by direction — so a "
+        "fall in intensity (cleaner) shows green even though its arrow points down.",
     ]
 
 

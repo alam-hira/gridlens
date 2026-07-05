@@ -10,7 +10,7 @@ from typing import Any
 
 from gridlens.engine import DashboardReport
 from gridlens.metrics import build_metrics_report
-from gridlens.models import parse_intensity
+from gridlens.models import Delta, MetricsReport, parse_intensity
 from gridlens.render import TERM_DEFS, build_dashboard
 
 
@@ -83,6 +83,51 @@ class _CanvasWrapperChecker(HTMLParser):
             if self.stack[index][0] == tag:
                 del self.stack[index:]
                 break
+
+
+def test_delta_colours_are_labelled_by_meaning() -> None:
+    # Deltas are coloured by better/worse-for-the-grid, not direction; each KPI
+    # delta must carry a matching "(better)"/"(worse)" word so a green ▲ is clear.
+    comparison = [
+        Delta(metric="intensity_mean", current=110, previous=100, absolute=10.0, percent=10.0),
+        Delta(metric="renewable_share", current=45, previous=40, absolute=5.0, percent=12.5),
+        Delta(metric="low_carbon_share", current=55, previous=50, absolute=5.0, percent=10.0),
+        Delta(metric="fossil_share", current=30, previous=35, absolute=-5.0, percent=-14.29),
+    ]
+    report = DashboardReport(
+        profile="gb",
+        title="T",
+        scope="national",
+        generated_at=datetime(2026, 7, 3, tzinfo=UTC),
+        metrics=MetricsReport(comparison=comparison),
+    )
+    html = _render(report)
+
+    def kpi(needle: str) -> tuple[str, str]:
+        for cls, text in re.findall(r'<span class="delta (delta-\w+)">(.*?)</span>', html, re.S):
+            if needle in text:
+                return cls, text
+        raise AssertionError(f"no KPI delta matching {needle!r}")
+
+    # Intensity UP is worse for the grid → red + "(worse)".
+    cls, text = kpi("gCO₂/kWh vs prev day mean")
+    assert cls == "delta-bad" and "(worse)" in text
+    # Renewable UP and low-carbon UP are better → green + "(better)".
+    cls, text = kpi("pp vs prev day mean")
+    assert cls == "delta-good" and "(better)" in text
+    cls, text = kpi("low-carbon vs prev day mean")
+    assert cls == "delta-good" and "(better)" in text
+
+    # Fossil DOWN is better → green in the comparison-table Change cell.
+    row = re.search(r"<td>fossil share</td>.*?<td class=\"num (delta-\w+)\">", html, re.S)
+    assert row is not None and row.group(1) == "delta-good"
+
+    # Invariant: every KPI delta's colour class matches its word.
+    for cls, text in re.findall(r'<span class="delta (delta-\w+)">(.*?)</span>', html, re.S):
+        if "(better)" in text:
+            assert cls == "delta-good"
+        if "(worse)" in text:
+            assert cls == "delta-bad"
 
 
 def test_terms_have_accessible_descriptions(sample_report: DashboardReport) -> None:

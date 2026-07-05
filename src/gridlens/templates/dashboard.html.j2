@@ -165,7 +165,7 @@
       {% if modal_band %}<span class="badge" style="background:{{ modal_band_color }}">mostly {{ modal_band }}</span>{% endif %}
       {% set d = deltas.intensity_mean %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} gCO₂/kWh vs prev day mean</span>{% endif %}
+        {{ d.arrow }} {{ d.absolute|abs }} gCO₂/kWh vs prev day mean{% if d.word %} ({{ d.word }}){% endif %}</span>{% endif %}
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkIntensity" role="img"
           aria-label="Daily mean intensity trend across the window">Daily mean intensity sparkline.</canvas>
@@ -178,7 +178,7 @@
       <span class="note">wind + solar + hydro</span>
       {% set d = deltas.renewable_share %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} pp vs prev day mean</span>{% endif %}
+        {{ d.arrow }} {{ d.absolute|abs }} pp vs prev day mean{% if d.word %} ({{ d.word }}){% endif %}</span>{% endif %}
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkRenewable" role="img"
           aria-label="Daily renewable share trend across the window">Daily renewable share sparkline.</canvas>
@@ -191,7 +191,7 @@
       <span class="note">low-carbon incl. nuclear &amp; biomass</span>
       {% set d = deltas.low_carbon_share %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} pp low-carbon vs prev day mean</span>{% endif %}
+        {{ d.arrow }} {{ d.absolute|abs }} pp low-carbon vs prev day mean{% if d.word %} ({{ d.word }}){% endif %}</span>{% endif %}
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkLowCarbon" role="img"
           aria-label="Daily low-carbon share trend across the window">Daily low-carbon share sparkline.</canvas>

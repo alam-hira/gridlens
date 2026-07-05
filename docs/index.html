@@ -148,7 +148,7 @@
       <h1>Great Britain electricity</h1>
       <p class="sub">
         Window 28 Jun 2026 00:00 → 05 Jul 2026 11:00 ·
-        generated 2026-07-05 11:00 UTC ·
+        generated 2026-07-05 11:09 UTC ·
         358 <span class="term-wrap"><button type="button" class="term" aria-describedby="tt-settlement_period">half-hours</button><span class="tip" id="tt-settlement_period" role="tooltip">The grid is measured in half-hour blocks called settlement periods.</span></span>
         (1 forecast-only)
       </p>
@@ -164,7 +164,7 @@
       <span class="badge" style="background:#6cbf3f">mostly low</span>
       
       <span class="delta delta-bad">
-        ▲ 23.68 gCO₂/kWh vs prev day mean</span>
+        ▲ 23.68 gCO₂/kWh vs prev day mean (worse)</span>
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkIntensity" role="img"
           aria-label="Daily mean intensity trend across the window">Daily mean intensity sparkline.</canvas>
@@ -177,7 +177,7 @@
       <span class="note">wind + solar + hydro</span>
       
       <span class="delta delta-bad">
-        ▼ 15.85 pp vs prev day mean</span>
+        ▼ 15.85 pp vs prev day mean (worse)</span>
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkRenewable" role="img"
           aria-label="Daily renewable share trend across the window">Daily renewable share sparkline.</canvas>
@@ -190,7 +190,7 @@
       <span class="note">low-carbon incl. nuclear &amp; biomass</span>
       
       <span class="delta delta-bad">
-        ▼ 12.71 pp low-carbon vs prev day mean</span>
+        ▼ 12.71 pp low-carbon vs prev day mean (worse)</span>
       <div class="spark-box" style="position:relative;height:40px">
         <canvas id="sparkLowCarbon" role="img"
           aria-label="Daily low-carbon share trend across the window">Daily low-carbon share sparkline.</canvas>
@@ -371,7 +371,7 @@
 
     <h2 style="font-size:1rem;margin-top:20px">Modelling choices</h2>
     <ul>
-      <li>Intensity uses the API's <em>actual</em> value where present and falls back to the <em>forecast</em> for recent/future half-hours; the freshness line reports how many periods are forecast-only.</li><li><strong>Biomass is counted as low-carbon</strong> (with nuclear, wind, solar and hydro). This is a modelling choice — biomass lifecycle emissions are debated — and is stated here rather than hidden.</li><li><strong>Renewable share</strong> means wind + solar + hydro only; biomass and nuclear are low-carbon but not counted as renewable.</li><li><strong>Layer A gas factor</strong> uses Combined-Cycle gas (the bulk of GB gas generation); Open-Cycle peaking is a small share the coarse mix cannot distinguish.</li><li><strong>Layer A imports factor</strong> is the mean of the interconnector factors, because the mix reports a single aggregate imports share with no source split — the main reason Layer A is only indicative.</li><li>Charts render to <code>&lt;canvas&gt;</code>; each carries <code>role="img"</code>, an <code>aria-label</code> and a text fallback, and a data-table view is provided for non-visual reading.</li>
+      <li>Intensity uses the API's <em>actual</em> value where present and falls back to the <em>forecast</em> for recent/future half-hours; the freshness line reports how many periods are forecast-only.</li><li><strong>Biomass is counted as low-carbon</strong> (with nuclear, wind, solar and hydro). This is a modelling choice — biomass lifecycle emissions are debated — and is stated here rather than hidden.</li><li><strong>Renewable share</strong> means wind + solar + hydro only; biomass and nuclear are low-carbon but not counted as renewable.</li><li><strong>Layer A gas factor</strong> uses Combined-Cycle gas (the bulk of GB gas generation); Open-Cycle peaking is a small share the coarse mix cannot distinguish.</li><li><strong>Layer A imports factor</strong> is the mean of the interconnector factors, because the mix reports a single aggregate imports share with no source split — the main reason Layer A is only indicative.</li><li>Charts render to <code>&lt;canvas&gt;</code>; each carries <code>role="img"</code>, an <code>aria-label</code> and a text fallback, and a data-table view is provided for non-visual reading.</li><li>Period-over-period deltas are coloured by whether the change is <strong>better or worse for grid cleanliness</strong>, not by direction — so a fall in intensity (cleaner) shows green even though its arrow points down.</li>
     </ul>
 
     <details>
