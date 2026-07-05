@@ -11,7 +11,7 @@ from typing import Any
 from gridlens.engine import DashboardReport
 from gridlens.metrics import build_metrics_report
 from gridlens.models import parse_intensity
-from gridlens.render import build_dashboard
+from gridlens.render import TERM_DEFS, build_dashboard
 
 
 def _render(report: DashboardReport) -> str:
@@ -83,6 +83,22 @@ class _CanvasWrapperChecker(HTMLParser):
             if self.stack[index][0] == tag:
                 del self.stack[index:]
                 break
+
+
+def test_terms_have_accessible_descriptions(sample_report: DashboardReport) -> None:
+    # Jargon is explained via inline tooltips only (no glossary section): every
+    # marked term must carry aria-describedby pointing at a tooltip whose text is
+    # non-empty, so screen readers announce the definition on focus.
+    html = _render(sample_report)
+    described = set(re.findall(r'aria-describedby="([^"]+)"', html))
+    assert described, "no terms with aria-describedby found"
+    for ref in described:
+        match = re.search(rf'id="{re.escape(ref)}"[^>]*>(.*?)</span>', html, re.S)
+        assert match is not None, f"aria-describedby={ref} resolves to no element"
+        assert match.group(1).strip(), f"description for {ref} is empty"
+    # All nine expected jargon terms are marked up and described.
+    for key in TERM_DEFS:
+        assert f'aria-describedby="tt-{key}"' in html, f"term {key!r} is not marked up"
 
 
 def test_every_canvas_is_in_a_bounded_wrapper(sample_report: DashboardReport) -> None:

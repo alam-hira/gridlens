@@ -86,6 +86,28 @@ _BAND_ORDER = ["very low", "low", "moderate", "high", "very high"]
 # A complete UTC day is 48 half-hourly settlement periods.
 _PERIODS_PER_DAY = 48
 
+# Plain-English definitions for jargon, surfaced as accessible tooltips on the
+# FIRST occurrence of each term (keyed by slug → used as the tooltip element id
+# ``tt-<slug>``). One short, friendly sentence each; kept here so the wording is
+# in one place and the render test can check every one resolves.
+TERM_DEFS: dict[str, str] = {
+    "carbon_intensity": "How much CO₂ is emitted per unit of electricity used right now.",
+    "gco2_kwh": "Grams of CO₂ released to make one kilowatt-hour of electricity.",
+    "generation_mix": "The share of electricity coming from each fuel or source.",
+    "renewable_low_carbon": (
+        "Renewable here is wind, solar and hydro; low-carbon also counts nuclear and biomass."
+    ),
+    "forecast_actual": "Actual is measured; forecast is the estimate for periods not yet settled.",
+    "settlement_period": "The grid is measured in half-hour blocks called settlement periods.",
+    "embedded_generation": (
+        "Small wind and solar behind the meter that the grid doesn't directly measure."
+    ),
+    "interconnector_imports": (
+        "Electricity imported through subsea cables from other countries' grids."
+    ),
+    "ccgt": "Combined-cycle gas turbines — the efficient gas plants that supply most GB gas.",
+}
+
 # Which direction of change is "good" for each compared metric (cleaner grid).
 _DELTA_GOOD_WHEN_DOWN = {"intensity_mean", "fossil_share"}
 
@@ -226,6 +248,8 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         "renewable_fuels": ", ".join(RENEWABLE_FUELS),
         "low_carbon_fuels": ", ".join(LOW_CARBON_FUELS),
         "fossil_fuels": ", ".join(FOSSIL_FUELS),
+        # Jargon definitions for the accessible term tooltips.
+        "term_defs": TERM_DEFS,
     }
     return context
 

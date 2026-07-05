@@ -1,3 +1,4 @@
+{% macro term(label, key) %}<span class="term-wrap"><button type="button" class="term" aria-describedby="tt-{{ key }}">{{ label }}</button><span class="tip" id="tt-{{ key }}" role="tooltip">{{ term_defs[key] }}</span></span>{% endmacro -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -118,6 +119,26 @@
     details { margin-top: 10px; } summary { cursor: pointer; color: var(--ink-2); }
     .attribution { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--grid);
       font-size: 0.8rem; color: var(--muted); }
+
+    /* Accessible jargon tooltips: a focusable button with a dotted underline and a
+       sibling definition shown on hover, keyboard focus (:focus-visible) and tap
+       (the .open class, toggled by JS). aria-describedby ties the two together so
+       screen readers announce the definition on focus. */
+    .term-wrap { position: relative; display: inline; }
+    .term {
+      font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
+      border-bottom: 1px dotted currentColor; cursor: help; line-height: inherit;
+    }
+    .term:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .tip {
+      display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+      width: max-content; max-width: min(260px, calc(100vw - 28px));
+      background: var(--surface-2); color: var(--ink); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px; box-shadow: var(--shadow);
+      font: 400 0.8rem/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      text-transform: none; letter-spacing: normal; white-space: normal; text-align: left;
+    }
+    .term-wrap:hover .tip, .term:focus-visible + .tip, .term-wrap.open .tip { display: block; }
   </style>
 </head>
 <body>
@@ -129,7 +150,7 @@
       <p class="sub">
         Window {{ window_from }} → {{ window_to }} ·
         generated {{ generated_at }} ·
-        {{ n_periods }} half-hours
+        {{ n_periods }} {{ term("half-hours", "settlement_period") }}
         {% if n_forecast_used %}({{ n_forecast_used }} forecast-only){% endif %}
       </p>
     </div>
@@ -139,8 +160,8 @@
   <!-- KPI tiles -------------------------------------------------------------->
   <section class="kpis" aria-label="Headline metrics">
     <div class="kpi">
-      <span class="label">Average intensity</span>
-      <span class="value">{{ mean_intensity if mean_intensity is not none else "—" }}<small> gCO₂/kWh</small></span>
+      <span class="label">Average {{ term("carbon intensity", "carbon_intensity") }}</span>
+      <span class="value">{{ mean_intensity if mean_intensity is not none else "—" }}<small> {{ term("gCO₂/kWh", "gco2_kwh") }}</small></span>
       {% if modal_band %}<span class="badge" style="background:{{ modal_band_color }}">mostly {{ modal_band }}</span>{% endif %}
       {% set d = deltas.intensity_mean %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
@@ -152,7 +173,7 @@
     </div>
 
     <div class="kpi">
-      <span class="label">Renewable share</span>
+      <span class="label">{{ term("Renewable", "renewable_low_carbon") }} share</span>
       <span class="value">{{ renewable_share if renewable_share is not none else "—" }}<small> %</small></span>
       <span class="note">wind + solar + hydro</span>
       {% set d = deltas.renewable_share %}
@@ -191,7 +212,7 @@
   <div class="two-col">
     <!-- Generation mix ----------------------------------------------------->
     <section class="card">
-      <h2>Generation mix <small style="color:var(--muted);font-weight:400">(window average)</small></h2>
+      <h2>{{ term("Generation mix", "generation_mix") }} <small style="color:var(--muted);font-weight:400">(window average)</small></h2>
       <div class="chart-box" style="position:relative;height:240px">
         <canvas id="mixChart" role="img"
           aria-label="Doughnut of the window-average generation mix.{% for r in mix_rows[:5] %} {{ r.label }} {{ r.share }} percent.{% endfor %}">
@@ -215,7 +236,7 @@
         </canvas>
       </div>
       <p class="note" style="font-size:0.8rem;color:var(--muted);margin:8px 0 0">
-        Solid = actual · dashed = forecast.
+        Solid = actual · dashed = {{ term("forecast", "forecast_actual") }}.
       </p>
     </section>
   </div>
@@ -292,7 +313,10 @@
       <div>
         <p style="margin-top:0"><strong>Layer A — independent reconstruction</strong> (indicative)</p>
         <p class="stat-inline">{{ validation.layer_a_mean }} gCO₂/kWh<small style="font-size:0.8rem;color:var(--muted)"> mean gap</small></p>
-        <p class="sub">Reconstructed from mix × factors: mean gap {{ validation.layer_a_mean }}
+        <p class="sub">Reconstructed from mix × factors — indicative because it can't credit
+          {{ term("embedded generation", "embedded_generation") }}, can't split
+          {{ term("interconnector imports", "interconnector_imports") }} by source, and treats
+          all gas as {{ term("CCGT", "ccgt") }}. Mean gap {{ validation.layer_a_mean }}
           (abs {{ validation.layer_a_mean_abs }}), spread ±{{ validation.layer_a_std }},
           range {{ validation.layer_a_min }}…{{ validation.layer_a_max }};
           {{ validation.layer_a_outliers }} outliers flagged.</p>
@@ -451,6 +475,50 @@ document.getElementById("themeToggle").addEventListener("click", () => {
 });
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (!document.documentElement.getAttribute("data-theme")) retheme();
+});
+
+// --- Accessible term tooltips: hover + focus are CSS; here we add tap toggle ---
+// and keep the tooltip inside the viewport on narrow screens. -----------------
+function positionTip(wrap) {
+  const tip = wrap.querySelector(".tip");
+  if (!tip) return;
+  tip.style.left = "0";
+  tip.style.right = "auto";
+  const margin = 8;
+  if (tip.getBoundingClientRect().right > window.innerWidth - margin) {
+    tip.style.left = "auto";
+    tip.style.right = "0";
+    if (tip.getBoundingClientRect().left < margin) {
+      tip.style.right = "auto";
+      tip.style.left = "0";
+    }
+  }
+}
+// Position on any reveal (hover/keyboard), so the clamp runs while it's visible.
+document.addEventListener("mouseover", (e) => {
+  const wrap = e.target.closest && e.target.closest(".term-wrap");
+  if (wrap) positionTip(wrap);
+});
+document.addEventListener("focusin", (e) => {
+  const wrap = e.target.closest && e.target.closest(".term-wrap");
+  if (wrap) positionTip(wrap);
+});
+// Tap toggles the definition (touch has no hover); a tap elsewhere closes it.
+document.addEventListener("click", (e) => {
+  const button = e.target.closest && e.target.closest(".term");
+  const current = button ? button.closest(".term-wrap") : null;
+  document.querySelectorAll(".term-wrap.open").forEach((wrap) => {
+    if (wrap !== current) wrap.classList.remove("open");
+  });
+  if (current) {
+    current.classList.toggle("open");
+    if (current.classList.contains("open")) positionTip(current);
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".term-wrap.open").forEach((wrap) => wrap.classList.remove("open"));
+  }
 });
 </script>
 </body>
