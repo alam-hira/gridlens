@@ -6,6 +6,9 @@
 
 **Live dashboard:** **[alam-hira.github.io/gridlens](https://alam-hira.github.io/gridlens/)** (served from [`docs/index.html`](docs/index.html)). You can also open [`examples/gb.html`](examples/gb.html) locally.
 
+
+<img width="1511" height="687" alt="image" src="https://github.com/user-attachments/assets/23dbe621-1912-41ab-8499-84662d9aab2f" />
+
 GridLens turns the official GB **Carbon Intensity API** into a trustworthy
 analytics agent: deterministic, typed Python computes every metric, the figures
 are **validated against the API's own published statistics** to a tight tolerance
