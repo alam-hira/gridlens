@@ -117,6 +117,24 @@
     .stat-inline { font-size: 1.4rem; font-weight: 700; }
     code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
     details { margin-top: 10px; } summary { cursor: pointer; color: var(--ink-2); }
+    /* Progressive-disclosure methodology tiles. Colours are theme tokens, so the
+       plain headline, the disclosure toggle and the precise detail all adapt to
+       light and dark automatically. */
+    .method-head { margin: 0 0 4px; font-weight: 700; font-size: 1rem; color: var(--ink); }
+    .disclosure { margin-top: 10px; }
+    .disclosure > summary {
+      cursor: pointer; color: var(--accent); font-size: 0.82rem; font-weight: 600;
+      list-style: none; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .disclosure > summary::-webkit-details-marker { display: none; }
+    .disclosure > summary::before { content: "▸"; font-size: 0.7em; }
+    .disclosure[open] > summary::before { content: "▾"; }
+    .disclosure .detail {
+      margin: 8px 0 0; padding: 10px 12px; font-size: 0.82rem; line-height: 1.5;
+      color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .disclosure .detail + .detail { margin-top: 8px; }
     .attribution { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--grid);
       font-size: 0.8rem; color: var(--muted); }
 
@@ -303,26 +321,46 @@
     <h2>Methodology &amp; validation</h2>
     <div class="vgrid">
       <div>
-        <p style="margin-top:0"><strong>Layer B — exact reconciliation</strong> (tight)</p>
+        <p class="method-head">Check 1 — did we get the maths right?</p>
         <p class="stat-inline ok" style="color:{{ '#0ca30c' if validation.match_rate_pct == 100 else 'var(--ink)' }}">
           {{ validation.match_rate_pct if validation.match_rate_pct is not none else "—" }}% match</p>
-        <p class="sub">{{ validation.windows_matched }}/{{ validation.windows_tested }} daily windows reconcile to
-          the API's own <code>/intensity/stats</code> within ±{{ validation.tolerance }} gCO₂/kWh
-          (largest mean gap {{ validation.max_abs_diff }}).</p>
+        <p class="sub">We re-added every half-hour ourselves and compared our daily averages,
+          minimums and maximums with the ones the official API publishes. They match
+          {{ validation.match_rate_pct }}% — within ±{{ validation.tolerance }} gCO₂/kWh across all
+          {{ validation.windows_tested }} days. Like re-adding the line items on a restaurant bill
+          and getting exactly the printed total.</p>
+        <details class="disclosure">
+          <summary>The precise method</summary>
+          <p class="detail">{{ validation.windows_matched }}/{{ validation.windows_tested }} daily
+            windows reconcile our recomputed mean/min/max against the API's own
+            <code>/intensity/stats</code> within ±{{ validation.tolerance }} gCO₂/kWh (largest mean
+            gap {{ validation.max_abs_diff }} gCO₂/kWh) — the only expected difference is that the
+            API rounds its average to a whole number.</p>
+        </details>
       </div>
       <div>
-        <p style="margin-top:0"><strong>Layer A — independent reconstruction</strong> (indicative)</p>
+        <p class="method-head">Check 2 — can we rebuild the number from scratch?</p>
         <p class="stat-inline">{{ validation.layer_a_mean }} gCO₂/kWh<small style="font-size:0.8rem;color:var(--muted)"> mean gap</small></p>
-        <p class="sub">Reconstructed from mix × factors — indicative because it can't credit
-          {{ term("embedded generation", "embedded_generation") }}, can't split
-          {{ term("interconnector imports", "interconnector_imports") }} by source, and treats
-          all gas as {{ term("CCGT", "ccgt") }}. Mean gap {{ validation.layer_a_mean }}
-          (abs {{ validation.layer_a_mean_abs }}), spread ±{{ validation.layer_a_std }},
-          range {{ validation.layer_a_min }}…{{ validation.layer_a_max }};
-          {{ validation.layer_a_outliers }} outliers flagged.</p>
+        <p class="sub">We also estimated the intensity a second, independent way: take each fuel's
+          share of the mix and multiply by its official emissions factor. Our estimate runs about
+          {{ validation.layer_a_mean }} gCO₂/kWh higher than the official figure — and that gap is
+          expected. The official number knows things the public mix can't show: rooftop solar and
+          small wind farms, where imports really come from, and losses in the wires. It's like
+          estimating a restaurant bill from the menu — close, but the printed bill includes the
+          service charge. We measure that gap and report it rather than hide it.</p>
+        <details class="disclosure">
+          <summary>The precise method</summary>
+          <p class="detail">Per-half-hour differences between our reconstruction and the reported
+            figure: mean gap {{ validation.layer_a_mean }} (abs {{ validation.layer_a_mean_abs }}),
+            spread ±{{ validation.layer_a_std }}, range {{ validation.layer_a_min }}…{{ validation.layer_a_max }};
+            {{ validation.layer_a_outliers }} outliers flagged. The estimate can't credit
+            {{ term("embedded generation", "embedded_generation") }}, can't split
+            {{ term("interconnector imports", "interconnector_imports") }} by source, and treats all
+            gas as {{ term("CCGT", "ccgt") }}.</p>
+          <p class="detail">{{ validation.layer_a_note }}</p>
+        </details>
       </div>
     </div>
-    <p class="sub" style="margin-top:6px">{{ validation.layer_a_note }}</p>
 
     <h2 style="font-size:1rem;margin-top:20px">Modelling choices</h2>
     <ul>

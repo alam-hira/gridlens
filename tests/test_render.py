@@ -130,6 +130,20 @@ def test_delta_colours_are_labelled_by_meaning() -> None:
             assert cls == "delta-bad"
 
 
+def test_methodology_uses_progressive_disclosure(sample_report: DashboardReport) -> None:
+    html = _render(sample_report)
+    # Both plain-English headlines are present.
+    assert "did we get the maths right?" in html
+    assert "can we rebuild the number from scratch?" in html
+    # Both tiles expose a native <details> with the precise method.
+    assert html.count("<summary>The precise method</summary>") == 2
+    # The rigorous content/numbers were MOVED, not removed — still in the output.
+    assert "/intensity/stats" in html  # Layer B precise reconciliation
+    assert "outliers flagged" in html  # Layer A precise distribution
+    assert "% match" in html  # headline number stays prominent
+    assert "mean gap" in html  # headline number stays prominent
+
+
 def test_terms_have_accessible_descriptions(sample_report: DashboardReport) -> None:
     # Jargon is explained via inline tooltips only (no glossary section): every
     # marked term must carry aria-describedby pointing at a tooltip whose text is

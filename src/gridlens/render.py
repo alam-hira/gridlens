@@ -283,28 +283,33 @@ def _validation_context(report: DashboardReport) -> dict[str, Any]:
 
 
 def _methodology_notes() -> list[str]:
-    """The modelling choices stated honestly in the footer (build-plan §10, §17)."""
+    """The modelling choices, plain-language first (build-plan §10, §17).
+
+    Each choice is one plain sentence for a general reader, with the precise bit
+    kept in place rather than hidden — the reader never has to know the internal
+    "Layer A/B" names to understand what was done.
+    """
     return [
-        "Intensity uses the API's <em>actual</em> value where present and falls back "
-        "to the <em>forecast</em> for recent/future half-hours; the freshness line "
-        "reports how many periods are forecast-only.",
-        "<strong>Biomass is counted as low-carbon</strong> (with nuclear, wind, solar "
-        "and hydro). This is a modelling choice — biomass lifecycle emissions are "
-        "debated — and is stated here rather than hidden.",
-        "<strong>Renewable share</strong> means wind + solar + hydro only; biomass and "
-        "nuclear are low-carbon but not counted as renewable.",
-        "<strong>Layer A gas factor</strong> uses Combined-Cycle gas (the bulk of GB "
-        "gas generation); Open-Cycle peaking is a small share the coarse mix cannot "
-        "distinguish.",
-        "<strong>Layer A imports factor</strong> is the mean of the interconnector "
-        "factors, because the mix reports a single aggregate imports share with no "
-        "source split — the main reason Layer A is only indicative.",
-        "Charts render to <code>&lt;canvas&gt;</code>; each carries "
-        '<code>role="img"</code>, an <code>aria-label</code> and a text fallback, and '
-        "a data-table view is provided for non-visual reading.",
-        "Period-over-period deltas are coloured by whether the change is "
-        "<strong>better or worse for grid cleanliness</strong>, not by direction — so a "
-        "fall in intensity (cleaner) shows green even though its arrow points down.",
+        "We show the grid's <em>measured</em> intensity where it's available, and the "
+        "<em>forecast</em> for the latest half-hours that aren't final yet — the line at the "
+        "top counts how many are forecast.",
+        "<strong>Biomass is counted as low-carbon</strong> (alongside nuclear, wind, solar and "
+        "hydro). That's a judgement call — biomass's lifecycle emissions are debated — so we "
+        "state it plainly rather than bury it.",
+        "<strong>Renewable</strong> here means wind, solar and hydro only; nuclear and biomass "
+        "count as low-carbon but not renewable.",
+        "For the from-scratch estimate, gas uses the emissions factor for the efficient "
+        "combined-cycle plants that supply most GB gas; the public mix can't separate the "
+        "smaller peaking plants.",
+        "The public mix lumps all imports into one figure, so the estimate averages the "
+        "interconnector factors — a rough proxy, and the main reason the from-scratch check is "
+        "only indicative.",
+        "Charts are drawn as a <code>&lt;canvas&gt;</code> image, so each carries a text label "
+        '(<code>role="img"</code> + <code>aria-label</code>) and a data-table fallback for '
+        "non-visual reading.",
+        "Day-to-day changes are coloured by whether they're <strong>better or worse for grid "
+        "cleanliness</strong>, not by direction — so a fall in intensity (cleaner) shows green "
+        "even though its arrow points down.",
     ]
 
 
