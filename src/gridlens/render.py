@@ -83,6 +83,9 @@ INDEX_COLORS: dict[str, str] = {
 }
 _BAND_ORDER = ["very low", "low", "moderate", "high", "very high"]
 
+# A complete UTC day is 48 half-hourly settlement periods.
+_PERIODS_PER_DAY = 48
+
 # Which direction of change is "good" for each compared metric (cleaner grid).
 _DELTA_GOOD_WHEN_DOWN = {"intensity_mean", "fossil_share"}
 
@@ -152,6 +155,17 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
     daily = metrics.daily
     trend = metrics.trend
 
+    # The latest calendar day is "partial" when it holds fewer than a full day of
+    # half-hours (today, still in progress). Flag it so the daily label and the
+    # period-comparison make clear its mean covers only the hours so far.
+    latest_day_partial = bool(daily) and daily[-1].n_periods < _PERIODS_PER_DAY
+    daily_labels = [point.day.strftime("%d %b") for point in daily]
+    if latest_day_partial and daily_labels:
+        daily_labels[-1] += " (partial)"
+    latest_day_note = (
+        f"{daily[-1].n_periods} of {_PERIODS_PER_DAY} half-hours" if latest_day_partial else ""
+    )
+
     context: dict[str, Any] = {
         "title": report.title,
         "generated_at": report.generated_at.strftime("%Y-%m-%d %H:%M UTC"),
@@ -189,7 +203,9 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         "trend_labels": [point.at.strftime("%d %b %H:%M") for point in trend],
         "trend_values": [point.intensity for point in trend],
         "trend_forecast": [point.is_forecast for point in trend],
-        "daily_labels": [point.day.strftime("%d %b") for point in daily],
+        "daily_labels": daily_labels,
+        "latest_day_partial": latest_day_partial,
+        "latest_day_note": latest_day_note,
         "spark_intensity": [point.mean_intensity for point in daily],
         "spark_min": [point.min_intensity for point in daily],
         "spark_renewable": [point.renewable_share for point in daily],

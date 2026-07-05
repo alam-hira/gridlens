@@ -276,9 +276,13 @@ def daily_series(
         intensities = intensity_by_day.get(day, [])
         renewables = renewable_by_day.get(day, [])
         low_carbons = low_carbon_by_day.get(day, [])
+        # The half-hour count is taken from whichever series is present, so a
+        # partial current day is flagged even if only one series covers it.
+        n_periods = max(len(intensities), len(renewables))
         points.append(
             DailyPoint(
                 day=day,
+                n_periods=n_periods,
                 mean_intensity=round(mean(intensities), 2) if intensities else None,
                 min_intensity=min(intensities) if intensities else None,
                 max_intensity=max(intensities) if intensities else None,

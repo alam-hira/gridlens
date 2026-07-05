@@ -51,6 +51,50 @@ def test_dashboard_is_well_formed(sample_report: DashboardReport) -> None:
     HTMLParser().feed(_render(sample_report))
 
 
+class _CanvasWrapperChecker(HTMLParser):
+    """Records any <canvas> whose direct parent isn't a bounded, positioned div."""
+
+    _VOID = {"meta", "link", "br", "img", "input", "hr", "source", "area", "base", "col", "embed"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stack: list[tuple[str, dict[str, str | None]]] = []
+        self.canvas_count = 0
+        self.unwrapped: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "canvas":
+            self.canvas_count += 1
+            parent_tag, parent_attrs = self.stack[-1] if self.stack else ("", {})
+            style = (parent_attrs.get("style") or "").replace(" ", "").lower()
+            wrapped = (
+                parent_tag == "div"
+                and "position:relative" in style
+                and re.search(r"height:\d+px", style) is not None
+            )
+            if not wrapped:
+                self.unwrapped.append(attributes.get("id") or "<canvas>")
+        if tag not in self._VOID:
+            self.stack.append((tag, attributes))
+
+    def handle_endtag(self, tag: str) -> None:
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                break
+
+
+def test_every_canvas_is_in_a_bounded_wrapper(sample_report: DashboardReport) -> None:
+    # Regression guard for the Chart.js responsive-growth loop: EVERY canvas must
+    # live alone in a div with position:relative + an explicit px height, or it
+    # will stretch unbounded (maintainAspectRatio:false with no bounded parent).
+    checker = _CanvasWrapperChecker()
+    checker.feed(_render(sample_report))
+    assert checker.canvas_count >= 6  # 4 sparklines + doughnut + trend
+    assert checker.unwrapped == [], f"unwrapped canvases: {checker.unwrapped}"
+
+
 def test_dashboard_labels_forecast_when_actual_null(intensity_date: dict[str, Any]) -> None:
     # A window with a forecast-only tail (actual=null) must render, count the
     # forecast periods in the freshness line, and mark them for the dashed trend.

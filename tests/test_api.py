@@ -8,17 +8,19 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from gridlens.api import app, get_client
+from gridlens.api import app, get_client, get_now
 from gridlens.exceptions import DataSourceError, GridLensError
 
-from .conftest import FakeClient
+from .conftest import SAMPLE_NOW, FakeClient
 
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    # Override the HTTP-client dependency so the API computes from fixtures,
-    # never the live network.
+    # Override the HTTP-client dependency so the API computes from fixtures, never
+    # the live network, and pin the clock so the window clamp (and thus the period
+    # counts) is deterministic regardless of the day the test runs.
     app.dependency_overrides[get_client] = FakeClient
+    app.dependency_overrides[get_now] = lambda: SAMPLE_NOW
     yield TestClient(app)
     app.dependency_overrides.clear()
 

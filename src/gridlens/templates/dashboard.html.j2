@@ -67,16 +67,19 @@
     .kpi .value { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
     .kpi .value small { font-size: 0.9rem; font-weight: 600; color: var(--muted); }
     .kpi .note { font-size: 0.78rem; color: var(--muted); }
-    .kpi .spark { height: 34px; margin-top: 6px; }
+    /* Sparkline wrapper: a fixed-height, positioned box that does NOT flex-grow,
+       so the KPI card height comes from its content plus this 40px box. */
+    .spark-box { position: relative; height: 40px; margin-top: 6px; flex: none; }
     .delta { font-size: 0.8rem; font-weight: 600; }
     .delta-good { color: var(--good); } .delta-bad { color: var(--bad); }
     .delta-flat { color: var(--muted); }
 
     .two-col { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; }
     @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+    /* Every chart canvas lives alone in a fixed-height, position:relative wrapper
+       (height set inline per chart), giving Chart.js's responsive resize a bounded
+       parent so it can't enter the canvas→parent→canvas growth loop. */
     .chart-box { position: relative; width: 100%; }
-    .chart-box.trend { height: 320px; }
-    .chart-box.donut { height: 260px; }
 
     .legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid;
       grid-template-columns: 1fr 1fr; gap: 4px 16px; }
@@ -141,9 +144,11 @@
       {% if modal_band %}<span class="badge" style="background:{{ modal_band_color }}">mostly {{ modal_band }}</span>{% endif %}
       {% set d = deltas.intensity_mean %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} gCO₂/kWh vs prev day</span>{% endif %}
-      <canvas class="spark" id="sparkIntensity" role="img"
-        aria-label="Daily mean intensity trend across the window">Daily mean intensity sparkline.</canvas>
+        {{ d.arrow }} {{ d.absolute|abs }} gCO₂/kWh vs prev day mean</span>{% endif %}
+      <div class="spark-box" style="position:relative;height:40px">
+        <canvas id="sparkIntensity" role="img"
+          aria-label="Daily mean intensity trend across the window">Daily mean intensity sparkline.</canvas>
+      </div>
     </div>
 
     <div class="kpi">
@@ -152,9 +157,11 @@
       <span class="note">wind + solar + hydro</span>
       {% set d = deltas.renewable_share %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} pp vs prev day</span>{% endif %}
-      <canvas class="spark" id="sparkRenewable" role="img"
-        aria-label="Daily renewable share trend across the window">Daily renewable share sparkline.</canvas>
+        {{ d.arrow }} {{ d.absolute|abs }} pp vs prev day mean</span>{% endif %}
+      <div class="spark-box" style="position:relative;height:40px">
+        <canvas id="sparkRenewable" role="img"
+          aria-label="Daily renewable share trend across the window">Daily renewable share sparkline.</canvas>
+      </div>
     </div>
 
     <div class="kpi">
@@ -163,17 +170,21 @@
       <span class="note">low-carbon incl. nuclear &amp; biomass</span>
       {% set d = deltas.low_carbon_share %}
       {% if d %}<span class="delta {{ 'delta-good' if d.good else 'delta-bad' if d.good is false else 'delta-flat' }}">
-        {{ d.arrow }} {{ d.absolute|abs }} pp low-carbon vs prev day</span>{% endif %}
-      <canvas class="spark" id="sparkLowCarbon" role="img"
-        aria-label="Daily low-carbon share trend across the window">Daily low-carbon share sparkline.</canvas>
+        {{ d.arrow }} {{ d.absolute|abs }} pp low-carbon vs prev day mean</span>{% endif %}
+      <div class="spark-box" style="position:relative;height:40px">
+        <canvas id="sparkLowCarbon" role="img"
+          aria-label="Daily low-carbon share trend across the window">Daily low-carbon share sparkline.</canvas>
+      </div>
     </div>
 
     <div class="kpi">
       <span class="label">Cleanest / dirtiest half-hour</span>
       <span class="value">{{ cleanest_value if cleanest_value is not none else "—" }}<small> / {{ dirtiest_value }} gCO₂/kWh</small></span>
       <span class="note">cleanest {{ cleanest_at }} · dirtiest {{ dirtiest_at }}</span>
-      <canvas class="spark" id="sparkMin" role="img"
-        aria-label="Daily minimum intensity trend across the window">Daily minimum intensity sparkline.</canvas>
+      <div class="spark-box" style="position:relative;height:40px">
+        <canvas id="sparkMin" role="img"
+          aria-label="Daily minimum intensity trend across the window">Daily minimum intensity sparkline.</canvas>
+      </div>
     </div>
   </section>
 
@@ -181,7 +192,7 @@
     <!-- Generation mix ----------------------------------------------------->
     <section class="card">
       <h2>Generation mix <small style="color:var(--muted);font-weight:400">(window average)</small></h2>
-      <div class="chart-box donut">
+      <div class="chart-box" style="position:relative;height:240px">
         <canvas id="mixChart" role="img"
           aria-label="Doughnut of the window-average generation mix.{% for r in mix_rows[:5] %} {{ r.label }} {{ r.share }} percent.{% endfor %}">
           Generation mix — {% for r in mix_rows %}{{ r.label }} {{ r.share }}%{% if not loop.last %}, {% endif %}{% endfor %}.
@@ -197,7 +208,7 @@
     <!-- Intensity trend ---------------------------------------------------->
     <section class="card">
       <h2>Carbon intensity trend</h2>
-      <div class="chart-box trend">
+      <div class="chart-box" style="position:relative;height:340px">
         <canvas id="trendChart" role="img"
           aria-label="Line chart of half-hourly carbon intensity across the window. Mean {{ mean_intensity }} gCO₂/kWh, ranging {{ cleanest_value }} to {{ dirtiest_value }}.">
           Half-hourly carbon intensity, mean {{ mean_intensity }} gCO₂/kWh, from {{ cleanest_value }} to {{ dirtiest_value }}.
@@ -225,9 +236,9 @@
   <!-- Period comparison ---------------------------------------------------->
   {% if deltas %}
   <section class="card">
-    <h2>Latest day vs the day before</h2>
+    <h2>Latest day{% if latest_day_partial %} (partial){% endif %} vs the day before</h2>
     <table>
-      <thead><tr><th>Metric</th><th class="num">Previous</th><th class="num">Latest</th><th class="num">Change</th></tr></thead>
+      <thead><tr><th>Metric</th><th class="num">Previous</th><th class="num">Latest{% if latest_day_partial %} (partial){% endif %}</th><th class="num">Change</th></tr></thead>
       <tbody>
       {% for metric, d in deltas.items() %}
         <tr>
@@ -241,6 +252,8 @@
       {% endfor %}
       </tbody>
     </table>
+    {% if latest_day_partial %}<p class="note" style="font-size:0.78rem;color:var(--muted);margin:8px 0 0">
+      Today is a partial day ({{ latest_day_note }}); its mean covers only the half-hours so far. Baseline is the previous day's mean — distinct from the anomaly section's same-time-of-day 7-day norm.</p>{% endif %}
   </section>
   {% endif %}
 

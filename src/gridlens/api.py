@@ -12,6 +12,8 @@ an upstream failure or malformed upstream data → 502, other engine errors → 
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import Depends, FastAPI, Query
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -52,6 +54,12 @@ def get_client(settings: Settings = Depends(get_settings)) -> CarbonIntensityCli
     return CarbonIntensityClient(settings)
 
 
+def get_now() -> datetime:
+    """Provide the current time as a dependency, so tests can pin the clock and
+    the window computation (and thus the clamped period counts) stays deterministic."""
+    return datetime.now(UTC)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Liveness check."""
@@ -63,9 +71,10 @@ def metrics(
     profile: str = ProfileQuery,
     days: int = DaysQuery,
     client: CarbonIntensityClient = Depends(get_client),
+    now: datetime = Depends(get_now),
 ) -> MetricsReport:
     """Computed metrics for a profile and window."""
-    return build_report(profile, days, client=client).metrics
+    return build_report(profile, days, client=client, now=now).metrics
 
 
 @app.get("/anomalies", response_model=list[Anomaly])
@@ -73,9 +82,10 @@ def anomalies(
     profile: str = ProfileQuery,
     days: int = DaysQuery,
     client: CarbonIntensityClient = Depends(get_client),
+    now: datetime = Depends(get_now),
 ) -> list[Anomaly]:
     """Deterministic anomaly flags for a profile and window."""
-    return build_report(profile, days, client=client).anomalies
+    return build_report(profile, days, client=client, now=now).anomalies
 
 
 @app.get("/validation", response_model=ValidationReport)
@@ -83,9 +93,10 @@ def validation(
     profile: str = ProfileQuery,
     days: int = DaysQuery,
     client: CarbonIntensityClient = Depends(get_client),
+    now: datetime = Depends(get_now),
 ) -> ValidationReport:
     """Two-layer validation report for a profile and window."""
-    return build_report(profile, days, client=client).validation
+    return build_report(profile, days, client=client, now=now).validation
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -93,9 +104,10 @@ def dashboard(
     profile: str = ProfileQuery,
     days: int = DaysQuery,
     client: CarbonIntensityClient = Depends(get_client),
+    now: datetime = Depends(get_now),
 ) -> HTMLResponse:
     """Rendered self-contained HTML dashboard (convenience endpoint)."""
-    report = build_report(profile, days, client=client)
+    report = build_report(profile, days, client=client, now=now)
     return HTMLResponse(content=build_dashboard(report))
 
 

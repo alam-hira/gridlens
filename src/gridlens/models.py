@@ -172,6 +172,10 @@ class DailyPoint(_Base):
     """One calendar day's rollup — the series behind the KPI sparklines."""
 
     day: date
+    # How many half-hours this UTC day holds. A complete day is 48; a smaller
+    # count means a partial day (typically today, still in progress), which the
+    # dashboard labels "(partial)".
+    n_periods: int = 0
     mean_intensity: float | None = None
     min_intensity: int | None = None
     max_intensity: int | None = None

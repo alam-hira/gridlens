@@ -81,8 +81,8 @@ def _intensity_deviation(
         severity="watch",
         message=(
             f"Latest intensity {observed} gCO2/kWh at {slot.strftime('%H:%M')} is "
-            f"{abs(change):.0f}% {direction} the {window_days}-day norm of "
-            f"{baseline:.0f} for this time of day — worth verifying."
+            f"{abs(change):.0f}% {direction} the {window_days}-day norm for this time "
+            f"of day ({baseline:.0f} gCO2/kWh) — worth verifying."
         ),
         observed=float(observed),
         baseline=round(baseline, 2),
