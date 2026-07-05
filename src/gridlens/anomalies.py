@@ -23,7 +23,7 @@ from statistics import mean
 
 from pydantic import BaseModel, Field
 
-from .metrics import _renewable_share
+from .metrics import LONDON, _renewable_share
 from .models import GenerationPeriod, IntensityPeriod, IntensityValue, effective_intensity
 
 
@@ -76,11 +76,15 @@ def _intensity_deviation(
     if abs(change) < deviation_pct:
         return None
     direction = "above" if change > 0 else "below"
+    # Peer-matching is done on the UTC time-of-day (an internal like-for-like key);
+    # the message shows the moment in UK local time so it reads on the same clock as
+    # the rest of the dashboard.
+    local_slot = latest.start.astimezone(LONDON).strftime("%H:%M")
     return Anomaly(
         rule="intensity_deviation",
         severity="watch",
         message=(
-            f"Latest intensity {observed} gCO2/kWh at {slot.strftime('%H:%M')} is "
+            f"Latest intensity {observed} gCO2/kWh at {local_slot} is "
             f"{abs(change):.0f}% {direction} the {window_days}-day norm for this time "
             f"of day ({baseline:.0f} gCO2/kWh) — worth verifying."
         ),

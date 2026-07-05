@@ -46,34 +46,35 @@ FUEL_LABELS: dict[str, str] = {
     "other": "Other",
 }
 
-# Fuel colours — assigned semantically per fuel, but MUTED (lower saturation) so
-# the doughnut and stacked area read gently. Each fuel keeps its conventional hue
-# family; the dark steps are slightly brighter equivalents tuned for the dark
-# surface. Verified distinguishable: the closest CIE76 ΔE across all pairs is ~16
-# (biomass/hydro), well above the ~12 merge threshold, in both themes. Identity is
-# reinforced by the always-present legend and data table, so colour is never the
-# only signal.
+# Fuel colours — the Observable 10 categorical palette, assigned semantically per
+# fuel so each keeps a recognisable hue (wind blue, gas warm, solar amber, …).
+# Observable 10 is a professionally-designed, pre-validated categorical set, so no
+# per-pair contrast/ΔE bookkeeping is needed here — a visual check is enough. The
+# light values are the palette as published; the dark values keep each hue but are
+# eyeball-lightened where a swatch would otherwise read muddy on the near-black
+# dark surface. Identity is reinforced by the always-present legend and data table,
+# so colour is never the only signal.
 FUEL_COLORS_LIGHT: dict[str, str] = {
-    "gas": "#d98e63",  # muted orange — fossil, warm
-    "coal": "#8d7663",  # soft brown
-    "imports": "#c894ab",  # dusty rose / mauve
-    "nuclear": "#9a8cc4",  # muted violet
-    "wind": "#7aa5d8",  # soft blue
-    "solar": "#d9b04c",  # muted amber
-    "hydro": "#6cb8a3",  # soft teal
-    "biomass": "#82ab7d",  # muted green
-    "other": "#a8a49c",  # warm grey
+    "wind": "#4269d0",  # blue
+    "gas": "#ff725c",  # coral
+    "imports": "#ff8ab7",  # pink
+    "solar": "#efb118",  # amber
+    "nuclear": "#a463f2",  # violet
+    "biomass": "#3ca951",  # green
+    "other": "#9498a0",  # grey
+    "hydro": "#6cc5b0",  # teal
+    "coal": "#9c6b4e",  # brown
 }
 FUEL_COLORS_DARK: dict[str, str] = {
-    "gas": "#e2a37e",
-    "coal": "#a58e7b",
-    "imports": "#d6a7bc",
-    "nuclear": "#ada0d6",
-    "wind": "#93b6e2",
-    "solar": "#e5c169",
-    "hydro": "#83c8b4",
-    "biomass": "#98bd92",
-    "other": "#bcb8b0",
+    "wind": "#7391e8",  # lightened — the medium blue reads heavy on dark
+    "gas": "#ff8f7b",
+    "imports": "#ff9fc5",
+    "solar": "#f4c445",
+    "nuclear": "#bd8bf6",  # lightened violet
+    "biomass": "#57c56d",  # lightened green
+    "other": "#b0b4bb",
+    "hydro": "#86d3c2",
+    "coal": "#c28d69",  # lightened — the brown is muddiest on dark
 }
 
 # Intensity index bands on a green (clean) → red (dirty) ramp. Always shown with
@@ -116,12 +117,14 @@ TERM_DEFS: dict[str, str] = {
 _DELTA_GOOD_WHEN_DOWN = {"intensity_mean", "fossil_share"}
 
 
-def _fmt_dt(moment: datetime | None, pattern: str = "%d %b %H:%M") -> str:
-    return "—" if moment is None else moment.strftime(pattern)
-
-
 def _fmt_local(moment: datetime | None, pattern: str = "%d %b %H:%M") -> str:
-    """Format a UTC moment in UK local time (Europe/London) for reader-facing 'when'."""
+    """Format a UTC moment in UK local time (Europe/London) for reader-facing 'when'.
+
+    Every reader-facing timestamp on the dashboard goes through here, so the page
+    shows one coherent clock — UK local (BST in summer) — rather than a mix of UTC
+    and local. The underlying data and the JSON API stay in UTC; only the display
+    is converted.
+    """
     return "—" if moment is None else moment.astimezone(LONDON).strftime(pattern)
 
 
@@ -302,9 +305,9 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
 
     context: dict[str, Any] = {
         "title": report.title,
-        "generated_at": report.generated_at.strftime("%Y-%m-%d %H:%M UTC"),
-        "window_from": _fmt_dt(report.window_from, "%d %b %Y %H:%M"),
-        "window_to": _fmt_dt(report.window_to, "%d %b %Y %H:%M"),
+        "generated_at": _fmt_local(report.generated_at, "%Y-%m-%d %H:%M"),
+        "window_from": _fmt_local(report.window_from, "%d %b %Y %H:%M"),
+        "window_to": _fmt_local(report.window_to, "%d %b %Y %H:%M"),
         "attribution": report.attribution,
         "n_periods": metrics.n_periods,
         "n_forecast_used": intensity.n_forecast_used,
@@ -336,7 +339,7 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         # Chart data (baked in as JSON)
         "mix_rows": mix_rows,
         "band_rows": band_rows,
-        "trend_labels": [point.at.strftime("%d %b %H:%M") for point in trend],
+        "trend_labels": [_fmt_local(point.at, "%d %b %H:%M") for point in trend],
         "trend_values": [point.intensity for point in trend],
         "trend_forecast": [point.is_forecast for point in trend],
         "daily_labels": daily_labels,
@@ -357,7 +360,7 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
             for point in tod
         ],
         # Generation mix over time (hourly) + per-fuel stacked series
-        "mot_labels": [point.at.strftime("%d %b %H:%M") for point in mot],
+        "mot_labels": [_fmt_local(point.at, "%d %b %H:%M") for point in mot],
         "mot_series": mot_series,
         # Renewables vs intensity scatter
         "scatter_points": scatter_points,
@@ -402,7 +405,7 @@ def _validation_context(report: DashboardReport) -> dict[str, Any]:
         "layer_a_note": layer_a.note,
         "factor_mapping": layer_a.factor_mapping,
         # Per-half-hour reconstruction gap, for the "gap over time" chart.
-        "gap_labels": [gap.at.strftime("%d %b %H:%M") for gap in layer_a.gaps],
+        "gap_labels": [_fmt_local(gap.at, "%d %b %H:%M") for gap in layer_a.gaps],
         "gap_data": [gap.difference for gap in layer_a.gaps],
     }
 
@@ -435,9 +438,10 @@ def _methodology_notes() -> list[str]:
         "Day-to-day changes are coloured by whether they're <strong>better or worse for grid "
         "cleanliness</strong>, not by direction — so a fall in intensity (cleaner) shows green "
         "even though its arrow points down.",
-        "The grid data is published in UTC; the <strong>time-of-day profile and the "
-        "cleanest/dirtiest times are converted to UK local time</strong> (Europe/London, so BST "
-        "in summer) so daylight lines up with the clock.",
+        "The grid data is published in UTC; <strong>every time shown on this page is converted "
+        "to UK local time</strong> (Europe/London, so BST in summer) — the trend and mix-over-time "
+        "axes, the time-of-day profile, the cleanest/dirtiest and record times, and the window "
+        "line — so daylight and the clock line up. The data and JSON API stay in UTC.",
     ]
 
 

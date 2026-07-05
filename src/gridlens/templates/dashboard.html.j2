@@ -5,6 +5,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} — GridLens</title>
+  <!-- Share metadata + inline favicon. Everything is self-contained: the icon is
+       an inline SVG data URI, so there is still no companion file or network call. -->
+  <meta name="description" content="GridLens — a self-contained dashboard of Great Britain's electricity carbon intensity and generation mix, with every number computed in deterministic Python.">
+  <meta property="og:title" content="GridLens — GB electricity dashboard">
+  <meta property="og:description" content="A self-contained dashboard of Great Britain's electricity carbon intensity and generation mix.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111111'/%3E%3Crect x='6' y='17' width='4.6' height='9' rx='1' fill='%233ca951'/%3E%3Crect x='13.7' y='11' width='4.6' height='15' rx='1' fill='%23efb118'/%3E%3Crect x='21.4' y='6' width='4.6' height='20' rx='1' fill='%234269d0'/%3E%3C/svg%3E">
   <style>
     /* Colour roles come from the dataviz skill's reference palette. data-theme
        (set by the toggle) wins over the OS preference in both directions. */
@@ -55,6 +62,24 @@
       cursor: pointer;
     }
     .toggle:hover { color: var(--ink); }
+
+    /* Slim sticky section nav under the header: plain anchor links, keyboard-
+       focusable, theme-aware. Its background matches the page plane so content
+       scrolls cleanly underneath, and it scrolls horizontally on narrow screens. */
+    .section-nav {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; gap: 4px; margin: 0 0 20px; padding: 8px 0;
+      overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+      background: var(--plane); border-bottom: 1px solid var(--border);
+    }
+    .section-nav a {
+      flex: none; padding: 6px 12px; border-radius: 8px; white-space: nowrap;
+      font-size: 0.85rem; font-weight: 600; color: var(--ink-2); text-decoration: none;
+    }
+    .section-nav a:hover { color: var(--ink); background: var(--surface-2); }
+    .section-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* Anchor jumps land below the sticky bar, not hidden under it. */
+    #overview, #trends, #anomalies, #methodology, #data { scroll-margin-top: 64px; }
 
     .card {
       background: var(--surface); border: 1px solid var(--border);
@@ -182,15 +207,25 @@
         {{ n_periods }} {{ term("half-hours", "settlement_period") }}
         {% if n_forecast_used %}({{ n_forecast_used }} forecast-only){% endif %}
       </p>
+      <p class="sub" style="margin-top:2px">All times UK local (Europe/London).</p>
     </div>
     <button class="toggle" id="themeToggle" type="button" aria-label="Toggle colour theme">◐ Theme</button>
   </header>
+
+  <!-- Slim sticky section nav (plain anchor links to the section ids below) --->
+  <nav class="section-nav" aria-label="Jump to section">
+    <a href="#overview">Overview</a>
+    <a href="#trends">Trends</a>
+    <a href="#anomalies">Anomalies</a>
+    <a href="#methodology">Methodology</a>
+    <a href="#data">Data</a>
+  </nav>
 
   <!-- At-a-glance summary (deterministic sentences from the metrics) --------->
   {% if summary %}<p class="glance">{{ summary }}</p>{% endif %}
 
   <!-- KPI tiles -------------------------------------------------------------->
-  <section class="kpis" aria-label="Headline metrics">
+  <section class="kpis" id="overview" aria-label="Headline metrics">
     <div class="kpi">
       <span class="label">Average {{ term("carbon intensity", "carbon_intensity") }}</span>
       <span class="value">{{ mean_intensity if mean_intensity is not none else "—" }}<small> {{ term("gCO₂/kWh", "gco2_kwh") }}</small></span>
@@ -241,7 +276,7 @@
     </div>
   </section>
 
-  <div class="two-col">
+  <div class="two-col" id="trends">
     <!-- Generation mix ----------------------------------------------------->
     <section class="card">
       <h2>{{ term("Generation mix", "generation_mix") }} <small style="color:var(--muted);font-weight:400">(window average)</small></h2>
@@ -357,7 +392,7 @@
   {% endif %}
 
   <!-- Anomalies ------------------------------------------------------------>
-  <section class="card">
+  <section class="card" id="anomalies">
     <h2>Anomaly flags <small style="color:var(--muted);font-weight:400">(observations to verify)</small></h2>
     {% if anomalies %}
       {% for a in anomalies %}
@@ -377,7 +412,7 @@
   </section>
 
   <!-- Methodology & validation footer ------------------------------------->
-  <footer class="card">
+  <footer class="card" id="methodology">
     <h2>Methodology &amp; validation</h2>
     <div class="vgrid">
       <div>
@@ -437,7 +472,7 @@
       {% for note in methodology %}<li>{{ note|safe }}</li>{% endfor %}
     </ul>
 
-    <details>
+    <details id="data">
       <summary>Data tables (non-visual view)</summary>
       <table style="margin-top:10px">
         <thead><tr><th>Fuel</th><th class="num">Window share %</th></tr></thead>

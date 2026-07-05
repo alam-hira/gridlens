@@ -7,6 +7,7 @@ import re
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from gridlens.engine import DashboardReport
 from gridlens.metrics import build_metrics_report
@@ -191,6 +192,43 @@ def test_every_canvas_is_in_a_bounded_wrapper(sample_report: DashboardReport) ->
     checker.feed(_render(sample_report))
     assert checker.canvas_count >= 6  # 4 sparklines + doughnut + trend
     assert checker.unwrapped == [], f"unwrapped canvases: {checker.unwrapped}"
+
+
+def test_all_displayed_times_are_uk_local(sample_report: DashboardReport) -> None:
+    # Timezone coherence: every displayed time is converted to Europe/London, not
+    # merely relabelled. The fixtures are summer (BST = UTC+1), so a genuine
+    # conversion shifts the window-start clock by an hour — a relabel-only change
+    # would leave the raw UTC time on the page.
+    html = _render(sample_report)
+    london = ZoneInfo("Europe/London")
+    window_from = sample_report.window_from
+    assert window_from is not None
+    local = window_from.astimezone(london).strftime("%d %b %Y %H:%M")
+    naive_utc = window_from.strftime("%d %b %Y %H:%M")
+    assert local != naive_utc, "fixture window should be in BST for this test to bite"
+    assert local in html, "window start is not shown in UK local time"
+    assert naive_utc not in html, "raw UTC time leaked onto the page (relabelled, not converted)"
+    # The reader is told which clock the page uses.
+    assert "All times UK local (Europe/London)" in html
+
+
+def test_section_nav_links_to_existing_ids(sample_report: DashboardReport) -> None:
+    # The sticky nav's anchor links must each resolve to a real section id.
+    html = _render(sample_report)
+    assert 'class="section-nav"' in html
+    for slug in ("overview", "trends", "anomalies", "methodology", "data"):
+        assert f'href="#{slug}"' in html, f"nav link for {slug!r} missing"
+        assert f'id="{slug}"' in html, f"section target {slug!r} missing"
+
+
+def test_share_meta_and_inline_favicon_present(sample_report: DashboardReport) -> None:
+    html = _render(sample_report)
+    assert '<meta name="description"' in html
+    assert 'property="og:title" content="GridLens — GB electricity dashboard"' in html
+    assert 'property="og:description"' in html
+    assert 'property="og:type" content="website"' in html
+    # Favicon is an inline SVG data URI — still self-contained, no companion file.
+    assert 'rel="icon" href="data:image/svg+xml,' in html
 
 
 def test_dashboard_labels_forecast_when_actual_null(intensity_date: dict[str, Any]) -> None:
