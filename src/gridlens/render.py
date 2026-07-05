@@ -27,7 +27,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 
 from .engine import DashboardReport
-from .metrics import FOSSIL_FUELS, LOW_CARBON_FUELS, RENEWABLE_FUELS
+from .metrics import FOSSIL_FUELS, LONDON, LOW_CARBON_FUELS, RENEWABLE_FUELS
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -116,6 +116,11 @@ def _fmt_dt(moment: datetime | None, pattern: str = "%d %b %H:%M") -> str:
     return "—" if moment is None else moment.strftime(pattern)
 
 
+def _fmt_local(moment: datetime | None, pattern: str = "%d %b %H:%M") -> str:
+    """Format a UTC moment in UK local time (Europe/London) for reader-facing 'when'."""
+    return "—" if moment is None else moment.astimezone(LONDON).strftime(pattern)
+
+
 def _modal_band(distribution: dict[str, float]) -> str | None:
     """The intensity band the most half-hours fell into."""
     if not distribution:
@@ -148,6 +153,71 @@ def _delta_context(report: DashboardReport) -> dict[str, dict[str, Any]]:
             "word": "" if is_flat else ("better" if good else "worse"),
         }
     return out
+
+
+def _build_summary(report: DashboardReport) -> str:
+    """Assemble the at-a-glance summary deterministically from computed metrics.
+
+    Fixed sentence templates with simple conditional branches only — no free text
+    — so the same metrics always produce the same words. Cleanest/dirtiest moments
+    are given in UK local time (weekday + time).
+    """
+    metrics = report.metrics
+    intensity = metrics.intensity
+    if intensity.mean is None:
+        return ""
+
+    sentences: list[str] = []
+    band = _modal_band(intensity.index_distribution)
+    band_clause = f", mostly in the {band} band" if band else ""
+    sentences.append(
+        f"Over this window the grid averaged {round(intensity.mean)} gCO₂/kWh{band_clause}."
+    )
+
+    if metrics.mix.renewable_share is not None:
+        sentences.append(
+            f"Renewables (wind, solar, hydro) supplied {metrics.mix.renewable_share}% on average."
+        )
+
+    if intensity.cleanest_at is not None and intensity.dirtiest_at is not None:
+        sentences.append(
+            f"It was cleanest at {_fmt_local(intensity.cleanest_at, '%a %H:%M')} "
+            f"({intensity.minimum} gCO₂/kWh) and dirtiest at "
+            f"{_fmt_local(intensity.dirtiest_at, '%a %H:%M')} ({intensity.maximum}), UK time."
+        )
+
+    if metrics.daily and metrics.daily[-1].mean_intensity is not None:
+        latest = metrics.daily[-1]
+        latest_mean = latest.mean_intensity
+        assert latest_mean is not None  # narrowed above for mypy
+        if latest_mean < intensity.mean:
+            direction = "cleaner than"
+        elif latest_mean > intensity.mean:
+            direction = "dirtier than"
+        else:
+            direction = "in line with"
+        partial = " (partial)" if latest.n_periods < _PERIODS_PER_DAY else ""
+        sentences.append(
+            f"The latest day{partial} is running {direction} the window average "
+            f"({round(latest_mean)} vs {round(intensity.mean)} gCO₂/kWh)."
+        )
+
+    return " ".join(sentences)
+
+
+def _scatter_caption(coefficient: float | None, n: int) -> str:
+    """One deterministic sentence describing the renewable–intensity correlation."""
+    if coefficient is None:
+        return "Not enough variation in this window to compute a correlation."
+    strength = (
+        "strong" if abs(coefficient) >= 0.7 else "moderate" if abs(coefficient) >= 0.4 else "weak"
+    )
+    sign = "negative" if coefficient < 0 else "positive"
+    lower_higher = "lower" if coefficient < 0 else "higher"
+    return (
+        f"Pearson r = {coefficient} across {n} half-hours — a {strength} {sign} correlation: "
+        f"more renewables, {lower_higher} intensity."
+    )
 
 
 def _build_context(report: DashboardReport) -> dict[str, Any]:
@@ -196,6 +266,36 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         f"{daily[-1].n_periods} of {_PERIODS_PER_DAY} half-hours" if latest_day_partial else ""
     )
 
+    # --- Time-of-day profile (local half-hour slots) --------------------------
+    tod = metrics.time_of_day
+    slot_means = [(point.slot, point.mean) for point in tod if point.mean is not None]
+    if slot_means:
+        cleanest = min(slot_means, key=lambda item: item[1])
+        dirtiest = max(slot_means, key=lambda item: item[1])
+        tod_caption = (
+            f"Typically cleanest around {cleanest[0]} ({round(cleanest[1])} gCO₂/kWh) and "
+            f"dirtiest around {dirtiest[0]} ({round(dirtiest[1])}), UK local time."
+        )
+    else:
+        tod_caption = ""
+
+    # --- Generation mix over time (per-fuel stacked series, ranked order) -----
+    mot = metrics.mix_over_time
+    mot_series = [
+        {
+            "fuel": share.fuel,
+            "label": FUEL_LABELS.get(share.fuel, share.fuel.title()),
+            "color_light": FUEL_COLORS_LIGHT.get(share.fuel, "#898781"),
+            "color_dark": FUEL_COLORS_DARK.get(share.fuel, "#a5a39c"),
+            "data": [point.shares.get(share.fuel, 0.0) for point in mot],
+        }
+        for share in mix.ranked
+    ]
+
+    # --- Renewables vs intensity scatter --------------------------------------
+    scatter_points = [{"x": point.renewable, "y": point.intensity} for point in metrics.scatter]
+    scatter_caption = _scatter_caption(metrics.renewable_intensity_r, len(scatter_points))
+
     context: dict[str, Any] = {
         "title": report.title,
         "generated_at": report.generated_at.strftime("%Y-%m-%d %H:%M UTC"),
@@ -204,6 +304,8 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         "attribution": report.attribution,
         "n_periods": metrics.n_periods,
         "n_forecast_used": intensity.n_forecast_used,
+        # At-a-glance summary (deterministic sentences from the metrics).
+        "summary": _build_summary(report),
         # KPI tiles
         "mean_intensity": None if intensity.mean is None else round(intensity.mean),
         "modal_band": modal,
@@ -214,18 +316,18 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         "imports_share": mix.imports_share,
         "other_share": mix.other_share,
         "cleanest_value": intensity.minimum,
-        "cleanest_at": _fmt_dt(intensity.cleanest_at),
+        "cleanest_at": _fmt_local(intensity.cleanest_at),
         "dirtiest_value": intensity.maximum,
-        "dirtiest_at": _fmt_dt(intensity.dirtiest_at),
+        "dirtiest_at": _fmt_local(intensity.dirtiest_at),
         "deltas": _delta_context(report),
-        # Records
+        # Records (times in UK local, matching the summary and time-of-day chart)
         "records": {
             "lowest": metrics.records.lowest_intensity,
-            "lowest_at": _fmt_dt(metrics.records.lowest_intensity_at),
+            "lowest_at": _fmt_local(metrics.records.lowest_intensity_at),
             "highest": metrics.records.highest_intensity,
-            "highest_at": _fmt_dt(metrics.records.highest_intensity_at),
+            "highest_at": _fmt_local(metrics.records.highest_intensity_at),
             "greenest": metrics.records.highest_renewable_share,
-            "greenest_at": _fmt_dt(metrics.records.highest_renewable_at),
+            "greenest_at": _fmt_local(metrics.records.highest_renewable_at),
         },
         # Chart data (baked in as JSON)
         "mix_rows": mix_rows,
@@ -240,6 +342,22 @@ def _build_context(report: DashboardReport) -> dict[str, Any]:
         "spark_min": [point.min_intensity for point in daily],
         "spark_renewable": [point.renewable_share for point in daily],
         "spark_low_carbon": [point.low_carbon_share for point in daily],
+        # Time-of-day profile (48 local half-hour slots) with min–max band
+        "tod_labels": [point.slot for point in tod],
+        "tod_mean": [point.mean for point in tod],
+        "tod_min": [point.minimum for point in tod],
+        "tod_max": [point.maximum for point in tod],
+        "tod_caption": tod_caption,
+        "tod_rows": [
+            {"slot": point.slot, "mean": point.mean, "min": point.minimum, "max": point.maximum}
+            for point in tod
+        ],
+        # Generation mix over time (hourly) + per-fuel stacked series
+        "mot_labels": [point.at.strftime("%d %b %H:%M") for point in mot],
+        "mot_series": mot_series,
+        # Renewables vs intensity scatter
+        "scatter_points": scatter_points,
+        "scatter_caption": scatter_caption,
         # Anomalies
         "anomalies": [
             {
@@ -279,6 +397,9 @@ def _validation_context(report: DashboardReport) -> dict[str, Any]:
         "layer_a_outliers": len(layer_a.outliers),
         "layer_a_note": layer_a.note,
         "factor_mapping": layer_a.factor_mapping,
+        # Per-half-hour reconstruction gap, for the "gap over time" chart.
+        "gap_labels": [gap.at.strftime("%d %b %H:%M") for gap in layer_a.gaps],
+        "gap_data": [gap.difference for gap in layer_a.gaps],
     }
 
 
@@ -310,6 +431,9 @@ def _methodology_notes() -> list[str]:
         "Day-to-day changes are coloured by whether they're <strong>better or worse for grid "
         "cleanliness</strong>, not by direction — so a fall in intensity (cleaner) shows green "
         "even though its arrow points down.",
+        "The grid data is published in UTC; the <strong>time-of-day profile and the "
+        "cleanest/dirtiest times are converted to UK local time</strong> (Europe/London, so BST "
+        "in summer) so daylight lines up with the clock.",
     ]
 
 

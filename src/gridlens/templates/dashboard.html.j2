@@ -81,6 +81,9 @@
        (height set inline per chart), giving Chart.js's responsive resize a bounded
        parent so it can't enter the canvas→parent→canvas growth loop. */
     .chart-box { position: relative; width: 100%; }
+    .glance { margin: 4px 0 20px; font-size: 1.02rem; line-height: 1.55; color: var(--ink);
+      max-width: 78ch; }
+    .caption { font-size: 0.82rem; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
 
     .legend { list-style: none; margin: 12px 0 0; padding: 0; display: grid;
       grid-template-columns: 1fr 1fr; gap: 4px 16px; }
@@ -175,6 +178,9 @@
     <button class="toggle" id="themeToggle" type="button" aria-label="Toggle colour theme">◐ Theme</button>
   </header>
 
+  <!-- At-a-glance summary (deterministic sentences from the metrics) --------->
+  {% if summary %}<p class="glance">{{ summary }}</p>{% endif %}
+
   <!-- KPI tiles -------------------------------------------------------------->
   <section class="kpis" aria-label="Headline metrics">
     <div class="kpi">
@@ -258,6 +264,52 @@
       </p>
     </section>
   </div>
+
+  <!-- Time-of-day profile --------------------------------------------------->
+  {% if tod_mean %}
+  <section class="card">
+    <h2>Time-of-day profile <small style="color:var(--muted);font-weight:400">(mean intensity by half-hour, UK local time)</small></h2>
+    <div class="chart-box" style="position:relative;height:300px">
+      <canvas id="todChart" role="img"
+        aria-label="Line of mean carbon intensity for each half-hour of a typical day in UK local time, with a shaded minimum-to-maximum band. {{ tod_caption }}">
+        Mean intensity by time of day (UK local time). {{ tod_caption }}
+      </canvas>
+    </div>
+    <p class="caption">{{ tod_caption }} The shaded band is the minimum–maximum range seen across the window.</p>
+  </section>
+  {% endif %}
+
+  <!-- Generation mix over time ---------------------------------------------->
+  {% if mot_series and mot_labels %}
+  <section class="card">
+    <h2>Generation mix over time <small style="color:var(--muted);font-weight:400">(hourly average)</small></h2>
+    <div class="chart-box" style="position:relative;height:340px">
+      <canvas id="motChart" role="img"
+        aria-label="Stacked area chart of each fuel's share of generation through the window, hourly averages. Fuels: {% for s in mot_series %}{{ s.label }}{% if not loop.last %}, {% endif %}{% endfor %}.">
+        Generation mix through the window (hourly): {% for s in mot_series %}{{ s.label }}{% if not loop.last %}, {% endif %}{% endfor %}.
+      </canvas>
+    </div>
+    <ul class="legend">
+      {% for s in mot_series %}
+      <li><span class="sw" style="background:{{ s.color_light }}"></span>{{ s.label }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <!-- Renewables vs intensity scatter --------------------------------------->
+  {% if scatter_points %}
+  <section class="card">
+    <h2>Renewables vs carbon intensity</h2>
+    <div class="chart-box" style="position:relative;height:300px">
+      <canvas id="scatterChart" role="img"
+        aria-label="Scatter plot of renewable share on the horizontal axis against carbon intensity on the vertical axis, one dot per half-hour. {{ scatter_caption }}">
+        Renewable share vs carbon intensity, one point per half-hour. {{ scatter_caption }}
+      </canvas>
+    </div>
+    <p class="caption">{{ scatter_caption }}</p>
+  </section>
+  {% endif %}
 
   <!-- Intensity bands ------------------------------------------------------>
   {% if band_rows %}
@@ -358,6 +410,16 @@
             {{ term("interconnector imports", "interconnector_imports") }} by source, and treats all
             gas as {{ term("CCGT", "ccgt") }}.</p>
           <p class="detail">{{ validation.layer_a_note }}</p>
+          {% if validation.gap_data %}
+          <div class="chart-box" style="position:relative;height:200px;margin-top:6px">
+            <canvas id="gapChart" role="img"
+              aria-label="Line chart of the reconstruction gap (our estimate minus the official intensity) for each half-hour across the window.">
+              Reconstruction gap (estimate − official) per half-hour across the window.
+            </canvas>
+          </div>
+          <p class="detail">The gap tends to peak in daylight hours, when embedded rooftop solar —
+            invisible to the public mix — pulls the official figure down.</p>
+          {% endif %}
         </details>
       </div>
     </div>
@@ -377,6 +439,14 @@
         <thead><tr><th>Factor → mix mapping</th><th class="num">gCO₂/kWh</th></tr></thead>
         <tbody>{% for fuel, v in validation.factor_mapping.items() %}<tr><td>{{ fuel }}</td><td class="num">{{ v }}</td></tr>{% endfor %}</tbody>
       </table>
+      {% if tod_rows %}
+      <table style="margin-top:12px">
+        <thead><tr><th>Time of day (UK local)</th><th class="num">Mean</th><th class="num">Min</th><th class="num">Max</th></tr></thead>
+        <tbody>{% for row in tod_rows %}<tr><td>{{ row.slot }}</td><td class="num">{{ row.mean }}</td><td class="num">{{ row.min }}</td><td class="num">{{ row.max }}</td></tr>{% endfor %}</tbody>
+      </table>
+      {% endif %}
+      <p class="caption">Renewables vs carbon intensity — {{ scatter_caption }} Mix-over-time and the
+        reconstruction-gap series use the same fuels and per-half-hour figures shown in the charts above.</p>
     </details>
 
     <p class="attribution">{{ attribution }}<br>
@@ -403,6 +473,15 @@ const DATA = {
   sparkMin: {{ spark_min|tojson }},
   sparkRenewable: {{ spark_renewable|tojson }},
   sparkLowCarbon: {{ spark_low_carbon|tojson }},
+  todLabels: {{ tod_labels|tojson }},
+  todMean: {{ tod_mean|tojson }},
+  todMin: {{ tod_min|tojson }},
+  todMax: {{ tod_max|tojson }},
+  motLabels: {{ mot_labels|tojson }},
+  motSeries: {{ mot_series|tojson }},
+  scatterPoints: {{ scatter_points|tojson }},
+  gapLabels: {{ validation.gap_labels|tojson }},
+  gapData: {{ validation.gap_data|tojson }},
 };
 
 // Theme handling: data-theme overrides the OS preference in both directions.
@@ -414,6 +493,12 @@ function currentMode() {
 function ink()  { return getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(); }
 function grid() { return getComputedStyle(document.documentElement).getPropertyValue("--grid").trim(); }
 function accent() { return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(); }
+// Translucent fill from a #rrggbb hex, for band/area/scatter fills.
+function withAlpha(hex, a) {
+  const h = (hex || "#2a78d6").replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+}
 
 const charts = [];
 function reg(chart, applyTheme) { charts.push({ chart, applyTheme }); return chart; }
@@ -503,6 +588,142 @@ sparkline("sparkIntensity", DATA.sparkIntensity);
 sparkline("sparkRenewable", DATA.sparkRenewable);
 sparkline("sparkLowCarbon", DATA.sparkLowCarbon);
 sparkline("sparkMin", DATA.sparkMin);
+
+// Time-of-day profile — mean line over a shaded min–max band (fill:'-1').
+const todCanvas = document.getElementById("todChart");
+if (todCanvas && DATA.todMean.length) {
+  const todChart = new Chart(todCanvas, {
+    type: "line",
+    data: {
+      labels: DATA.todLabels,
+      datasets: [
+        { label: "min", data: DATA.todMin, borderWidth: 0, pointRadius: 0, fill: false },
+        { label: "max", data: DATA.todMax, borderWidth: 0, pointRadius: 0,
+          fill: "-1", backgroundColor: withAlpha(accent(), 0.14) },
+        { label: "mean", data: DATA.todMean, borderColor: accent(), backgroundColor: "transparent",
+          borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y} gCO₂/kWh` } } },
+      scales: {
+        x: { grid: { display: false },
+          ticks: { color: ink(), maxTicksLimit: 8, autoSkip: true },
+          title: { display: true, text: "UK local time", color: ink() } },
+        y: { grid: { color: grid() }, ticks: { color: ink() },
+          title: { display: true, text: "gCO₂/kWh", color: ink() } },
+      },
+    },
+  });
+  reg(todChart, () => {
+    todChart.data.datasets[1].backgroundColor = withAlpha(accent(), 0.14);
+    todChart.data.datasets[2].borderColor = accent();
+    todChart.options.scales.x.ticks.color = ink();
+    todChart.options.scales.x.title.color = ink();
+    todChart.options.scales.y.ticks.color = ink();
+    todChart.options.scales.y.grid.color = grid();
+    todChart.options.scales.y.title.color = ink();
+  });
+}
+
+// Generation mix over time — stacked filled areas, one per fuel.
+const motCanvas = document.getElementById("motChart");
+if (motCanvas && DATA.motSeries.length) {
+  const motDatasets = () => DATA.motSeries.map((s) => {
+    const colour = currentMode() === "dark" ? s.color_dark : s.color_light;
+    return { label: s.label, data: s.data, borderColor: colour,
+      backgroundColor: withAlpha(colour, 0.78), borderWidth: 1, pointRadius: 0, fill: true, tension: 0.2 };
+  });
+  const motChart = new Chart(motCanvas, {
+    type: "line",
+    data: { labels: DATA.motLabels, datasets: motDatasets() },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y}%` } } },
+      scales: {
+        x: { stacked: true, grid: { display: false },
+          ticks: { color: ink(), maxTicksLimit: 8, autoSkip: true } },
+        y: { stacked: true, min: 0, grid: { color: grid() }, ticks: { color: ink() },
+          title: { display: true, text: "% of generation", color: ink() } },
+      },
+    },
+  });
+  reg(motChart, () => {
+    motChart.data.datasets.forEach((ds, i) => {
+      const colour = currentMode() === "dark" ? DATA.motSeries[i].color_dark : DATA.motSeries[i].color_light;
+      ds.borderColor = colour;
+      ds.backgroundColor = withAlpha(colour, 0.78);
+    });
+    motChart.options.scales.x.ticks.color = ink();
+    motChart.options.scales.y.ticks.color = ink();
+    motChart.options.scales.y.grid.color = grid();
+    motChart.options.scales.y.title.color = ink();
+  });
+}
+
+// Renewables vs intensity — one dot per half-hour.
+const scatterCanvas = document.getElementById("scatterChart");
+if (scatterCanvas && DATA.scatterPoints.length) {
+  const scatterChart = new Chart(scatterCanvas, {
+    type: "scatter",
+    data: { datasets: [{ label: "half-hour", data: DATA.scatterPoints,
+      backgroundColor: withAlpha(accent(), 0.5), pointRadius: 2.5 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${c.parsed.x}% renewable, ${c.parsed.y} gCO₂/kWh` } } },
+      scales: {
+        x: { title: { display: true, text: "Renewable share (%)", color: ink() },
+          grid: { color: grid() }, ticks: { color: ink() } },
+        y: { title: { display: true, text: "Intensity (gCO₂/kWh)", color: ink() },
+          grid: { color: grid() }, ticks: { color: ink() } },
+      },
+    },
+  });
+  reg(scatterChart, () => {
+    scatterChart.data.datasets[0].backgroundColor = withAlpha(accent(), 0.5);
+    for (const axis of ["x", "y"]) {
+      scatterChart.options.scales[axis].ticks.color = ink();
+      scatterChart.options.scales[axis].grid.color = grid();
+      scatterChart.options.scales[axis].title.color = ink();
+    }
+  });
+}
+
+// Layer A reconstruction gap over time (lives inside a <details>).
+const gapCanvas = document.getElementById("gapChart");
+if (gapCanvas && DATA.gapData.length) {
+  const gapChart = new Chart(gapCanvas, {
+    type: "line",
+    data: { labels: DATA.gapLabels, datasets: [{ data: DATA.gapData, borderColor: accent(),
+      backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 0, tension: 0.2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink(), maxTicksLimit: 6, autoSkip: true } },
+        y: { grid: { color: grid() }, ticks: { color: ink() },
+          title: { display: true, text: "gap gCO₂/kWh", color: ink() } },
+      },
+    },
+  });
+  reg(gapChart, () => {
+    gapChart.data.datasets[0].borderColor = accent();
+    gapChart.options.scales.x.ticks.color = ink();
+    gapChart.options.scales.y.ticks.color = ink();
+    gapChart.options.scales.y.grid.color = grid();
+    gapChart.options.scales.y.title.color = ink();
+  });
+  // The chart starts inside a collapsed <details> (zero size); resize when opened.
+  const wrapper = gapCanvas.closest("details");
+  if (wrapper) wrapper.addEventListener("toggle", () => { if (wrapper.open) gapChart.resize(); });
+}
 
 function retheme() {
   for (const { chart, applyTheme } of charts) { applyTheme(); chart.update("none"); }

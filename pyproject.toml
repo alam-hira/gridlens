@@ -25,6 +25,9 @@ dependencies = [
   "typer>=0.12,<1",
   "fastapi>=0.110,<1",
   "uvicorn>=0.29,<1",
+  # tzdata provides the IANA zones for zoneinfo (UTC→Europe/London); required on
+  # Windows/minimal images that lack a system zone database. Date-versioned, so no cap.
+  "tzdata>=2024.1",
 ]
 
 [project.scripts]

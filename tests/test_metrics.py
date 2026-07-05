@@ -108,6 +108,26 @@ def test_comparison_needs_two_days(intensity_range: dict[str, Any]) -> None:
     assert comparison(one_day, []) == []
 
 
+def test_temporal_series_computed(
+    intensity_range: dict[str, Any], generation_range: dict[str, Any]
+) -> None:
+    report = build_metrics_report(
+        parse_intensity(intensity_range), parse_generation(generation_range)
+    )
+    # Time-of-day profile: 48 local half-hour slots, chronologically ordered.
+    assert len(report.time_of_day) == 48
+    assert report.time_of_day[0].slot == "00:00"
+    assert report.time_of_day[-1].slot == "23:30"
+    assert all(p.mean is not None for p in report.time_of_day)
+    # Mix over time: hourly buckets with fuel shares.
+    assert report.mix_over_time
+    assert "gas" in report.mix_over_time[0].shares
+    # Scatter + Pearson r: one point per aligned half-hour; r in [-1, 1].
+    assert report.scatter
+    assert report.renewable_intensity_r is not None
+    assert -1.0 <= report.renewable_intensity_r <= 1.0
+
+
 def test_build_report_shape(
     intensity_range: dict[str, Any], generation_range: dict[str, Any]
 ) -> None:

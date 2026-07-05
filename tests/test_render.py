@@ -130,6 +130,29 @@ def test_delta_colours_are_labelled_by_meaning() -> None:
             assert cls == "delta-bad"
 
 
+def test_at_a_glance_summary_renders_with_computed_mean(sample_report: DashboardReport) -> None:
+    html = _render(sample_report)
+    match = re.search(r'<p class="glance">(.*?)</p>', html, re.S)
+    assert match is not None, "at-a-glance summary not rendered"
+    glance = match.group(1)
+    mean = sample_report.metrics.intensity.mean
+    assert mean is not None
+    # The summary quotes the deterministically-computed window mean.
+    assert str(round(mean)) in glance
+    assert "gCO₂/kWh" in glance
+
+
+def test_new_temporal_charts_present(sample_report: DashboardReport) -> None:
+    html = _render(sample_report)
+    # Four new canvases (time-of-day, mix-over-time, scatter, gap) on top of the 6.
+    for canvas_id in ("todChart", "motChart", "scatterChart", "gapChart"):
+        assert f'id="{canvas_id}"' in html
+    assert html.count("<canvas") == 10
+    # Local-time axis and the Pearson r caption are surfaced.
+    assert "UK local time" in html
+    assert "Pearson r" in html
+
+
 def test_methodology_uses_progressive_disclosure(sample_report: DashboardReport) -> None:
     html = _render(sample_report)
     # Both plain-English headlines are present.

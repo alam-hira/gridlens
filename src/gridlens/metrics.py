@@ -23,7 +23,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from datetime import date, datetime
-from statistics import mean
+from statistics import StatisticsError, correlation, mean
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -37,10 +38,17 @@ from .models import (
     IntensityValue,
     MetricsReport,
     MixMetrics,
+    MixOverTimePoint,
     Records,
+    ScatterPoint,
+    TimeOfDayPoint,
     TrendPoint,
     effective_intensity,
 )
+
+# GB grid data is published in UTC; the time-of-day view is shown in local time
+# so "cleanest around lunchtime" lands where a UK reader expects it.
+LONDON = ZoneInfo("Europe/London")
 
 # --- Fuel classification (a stated modelling choice; see the footer) ---------
 #
@@ -293,11 +301,84 @@ def daily_series(
     return points
 
 
+def time_of_day_profile(intensity_periods: list[IntensityPeriod]) -> list[TimeOfDayPoint]:
+    """Mean/min/max intensity per local half-hour-of-day, averaged across the window.
+
+    Each period's UTC start is converted to Europe/London and bucketed by its
+    local ``HH:MM`` slot, so the profile answers "when in a typical UK day is the
+    grid cleanest?". Slots sort chronologically because ``HH:MM`` is zero-padded.
+    """
+    by_slot: dict[str, list[int]] = defaultdict(list)
+    for period in intensity_periods:
+        value = _effective(period.intensity)[0]
+        if value is not None:
+            slot = period.start.astimezone(LONDON).strftime("%H:%M")
+            by_slot[slot].append(value)
+    return [
+        TimeOfDayPoint(
+            slot=slot,
+            mean=round(mean(by_slot[slot]), 2),
+            minimum=min(by_slot[slot]),
+            maximum=max(by_slot[slot]),
+        )
+        for slot in sorted(by_slot)
+    ]
+
+
+def mix_over_time(generation_periods: list[GenerationPeriod]) -> list[MixOverTimePoint]:
+    """Generation mix through the window, downsampled to hourly means for legibility."""
+    by_hour: dict[datetime, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for period in generation_periods:
+        hour = period.start.replace(minute=0, second=0, microsecond=0)
+        for fuel in period.generationmix:
+            by_hour[hour][fuel.fuel].append(fuel.perc)
+    return [
+        MixOverTimePoint(
+            at=hour,
+            shares={fuel: round(mean(values), 2) for fuel, values in by_hour[hour].items()},
+        )
+        for hour in sorted(by_hour)
+    ]
+
+
+def renewable_vs_intensity(
+    intensity_periods: list[IntensityPeriod],
+    generation_periods: list[GenerationPeriod],
+) -> tuple[list[ScatterPoint], float | None]:
+    """Pair each half-hour's renewable share with its intensity; return points + Pearson r."""
+    intensity_by_start = {
+        period.start: value
+        for period in intensity_periods
+        if (value := _effective(period.intensity)[0]) is not None
+    }
+    points: list[ScatterPoint] = []
+    renewables: list[float] = []
+    intensities: list[float] = []
+    for period in generation_periods:
+        intensity_value = intensity_by_start.get(period.start)
+        if intensity_value is None:
+            continue
+        share = _renewable_share(period)
+        points.append(ScatterPoint(renewable=round(share, 2), intensity=intensity_value))
+        renewables.append(share)
+        intensities.append(intensity_value)
+
+    coefficient: float | None = None
+    if len(renewables) >= 2:
+        try:
+            coefficient = round(correlation(renewables, intensities), 3)
+        except StatisticsError:
+            # Constant series (zero variance) has no defined correlation.
+            coefficient = None
+    return points, coefficient
+
+
 def build_metrics_report(
     intensity_periods: list[IntensityPeriod],
     generation_periods: list[GenerationPeriod],
 ) -> MetricsReport:
     """Assemble the full metric bundle the API serves and the dashboard renders."""
+    scatter, renewable_intensity_r = renewable_vs_intensity(intensity_periods, generation_periods)
     return MetricsReport(
         window_from=intensity_periods[0].start if intensity_periods else None,
         window_to=intensity_periods[-1].end if intensity_periods else None,
@@ -308,4 +389,8 @@ def build_metrics_report(
         comparison=comparison(intensity_periods, generation_periods),
         trend=trend(intensity_periods),
         daily=daily_series(intensity_periods, generation_periods),
+        time_of_day=time_of_day_profile(intensity_periods),
+        mix_over_time=mix_over_time(generation_periods),
+        scatter=scatter,
+        renewable_intensity_r=renewable_intensity_r,
     )

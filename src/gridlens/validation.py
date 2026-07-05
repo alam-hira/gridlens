@@ -148,6 +148,13 @@ class LayerAOutlier(BaseModel):
     difference: float
 
 
+class LayerAGapPoint(BaseModel):
+    """The reconstruction gap (reconstructed − actual) for one half-hour."""
+
+    at: datetime
+    difference: float
+
+
 class LayerAResult(BaseModel):
     """Layer A outcome: the honest difference distribution, not a pass/fail."""
 
@@ -158,6 +165,7 @@ class LayerAResult(BaseModel):
     min_difference: float | None = None
     max_difference: float | None = None
     outliers: list[LayerAOutlier] = Field(default_factory=list)
+    gaps: list[LayerAGapPoint] = Field(default_factory=list)
     factor_mapping: dict[str, float] = Field(default_factory=dict)
     note: str = ""
 
@@ -292,6 +300,11 @@ def reconstruct_intensity(
     result.std_difference = round(pstdev(diffs), 2) if len(diffs) > 1 else 0.0
     result.min_difference = round(min(diffs), 2)
     result.max_difference = round(max(diffs), 2)
+    # The full per-half-hour gap series drives the "gap over time" chart.
+    result.gaps = [
+        LayerAGapPoint(at=at, difference=round(difference, 2))
+        for (at, _recon, _actual, difference) in differences
+    ]
 
     # Flag periods whose gap is unusually far from the *typical* (mean) gap.
     threshold = outlier_sigma * (result.std_difference or 0.0)

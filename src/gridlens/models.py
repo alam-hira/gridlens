@@ -168,6 +168,29 @@ class TrendPoint(_Base):
     is_forecast: bool = False
 
 
+class TimeOfDayPoint(_Base):
+    """Mean/min/max intensity for one local half-hour-of-day slot (48 per day)."""
+
+    slot: str  # local "HH:MM" (Europe/London)
+    mean: float | None = None
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+class MixOverTimePoint(_Base):
+    """Hourly-averaged generation mix at one chronological point in the window."""
+
+    at: datetime
+    shares: dict[str, float] = Field(default_factory=dict)
+
+
+class ScatterPoint(_Base):
+    """One half-hour paired for the renewable-share vs carbon-intensity scatter."""
+
+    renewable: float
+    intensity: int
+
+
 class DailyPoint(_Base):
     """One calendar day's rollup — the series behind the KPI sparklines."""
 
@@ -200,6 +223,10 @@ class MetricsReport(_Base):
     comparison: list[Delta] = Field(default_factory=list)
     trend: list[TrendPoint] = Field(default_factory=list)
     daily: list[DailyPoint] = Field(default_factory=list)
+    time_of_day: list[TimeOfDayPoint] = Field(default_factory=list)
+    mix_over_time: list[MixOverTimePoint] = Field(default_factory=list)
+    scatter: list[ScatterPoint] = Field(default_factory=list)
+    renewable_intensity_r: float | None = None
 
 
 # --- Boundary parsers ----------------------------------------------------
