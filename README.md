@@ -7,7 +7,7 @@
 **Live dashboard:** **[alam-hira.github.io/gridlens](https://alam-hira.github.io/gridlens/)** (served from [`docs/index.html`](docs/index.html)). You can also open [`examples/gb.html`](examples/gb.html) locally.
 
 
-<img width="1511" height="687" alt="image" src="https://github.com/user-attachments/assets/23dbe621-1912-41ab-8499-84662d9aab2f" />
+[![GridLens dashboard — summary, KPI tiles, generation mix and intensity trend](https://github.com/user-attachments/assets/23dbe621-1912-41ab-8499-84662d9aab2f)](https://alam-hira.github.io/gridlens/)
 
 GridLens turns the official GB **Carbon Intensity API** into a trustworthy
 analytics agent: deterministic, typed Python computes every metric, the figures
@@ -52,7 +52,7 @@ pip install -e ".[dev]"
 
 ruff check .        # lint
 mypy src            # type-check
-pytest              # tests (53)
+pytest              # tests
 
 gridlens --help
 gridlens report --profile gb --days 7 --out examples/gb.html   # build the dashboard
@@ -116,6 +116,10 @@ one needs no code change. `gb` is the national view; regional profiles
   less screen-reader-native than SVG.
 - **The published dashboard is a snapshot**, not live, unless a scheduled refresh
   is added.
+
+## How this was built
+
+Designed, specified, and reviewed by me; pair-built with Claude Code working from the build plan in `docs/`. Every design decision, the two independent adversarial review passes, and the validation results are documented there — the engineering judgment is the point, and it's all on record.
 
 ## Data & licence
 
